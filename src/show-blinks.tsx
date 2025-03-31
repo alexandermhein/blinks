@@ -1,4 +1,4 @@
-import { ActionPanel, Action, Icon, List, showToast, Toast } from "@raycast/api";
+import { ActionPanel, Action, Icon, List, showToast, Toast, Detail } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { Blink, getBlinks, deleteBlink } from "./utils/storage";
 import { getBlinkIcon, getBlinkTitle, getBlinkIconColor, BlinkType } from "./utils/design";
@@ -23,6 +23,47 @@ interface BlinkItemProps {
   onDelete: (id: string) => Promise<void>;
 }
 
+interface BlinkDetailProps {
+  blink: Blink;
+  onDelete: (id: string) => Promise<void>;
+}
+
+const BlinkDetail = ({ blink, onDelete }: BlinkDetailProps) => {
+  const markdown = `## ${blink.title}`;
+
+  return (
+    <Detail
+      markdown={markdown}
+      metadata={
+        <Detail.Metadata>
+          <Detail.Metadata.TagList title="Type">
+            <Detail.Metadata.TagList.Item text={getBlinkTitle(blink.type)} />
+          </Detail.Metadata.TagList>
+          <Detail.Metadata.Label title="Created" text={formatDate(blink.createdOn)} />
+          {blink.source && (
+            <Detail.Metadata.Link title="Source" text={blink.source} target={blink.source} />
+          )}
+          {blink.description && (
+            <Detail.Metadata.Label title="Description" text={blink.description} />
+          )}
+        </Detail.Metadata>
+      }
+      actions={
+        <ActionPanel>
+          <Action.CopyToClipboard content={blink.title} />
+          {blink.source && <Action.OpenInBrowser url={blink.source} />}
+          <Action
+            title="Delete Blink"
+            icon={Icon.Trash}
+            style={Action.Style.Destructive}
+            onAction={() => onDelete(blink.id)}
+          />
+        </ActionPanel>
+      }
+    />
+  );
+};
+
 // Extracted BlinkItem component for better maintainability
 const BlinkItem = ({ blink, onDelete }: BlinkItemProps) => (
   <List.Item
@@ -36,6 +77,10 @@ const BlinkItem = ({ blink, onDelete }: BlinkItemProps) => (
     ]}
     actions={
       <ActionPanel>
+        <Action.Push
+          title="Show Details"
+          target={<BlinkDetail blink={blink} onDelete={onDelete} />}
+        />
         <Action.CopyToClipboard content={blink.title} />
         {blink.source && <Action.OpenInBrowser url={blink.source} />}
         <Action
@@ -67,7 +112,7 @@ export default function Command() {
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
-        title: "Error loading blinks",
+        title: "Error loading Blinks",
         message: error instanceof Error ? error.message : "Unknown error occurred",
       });
     } finally {
@@ -86,7 +131,7 @@ export default function Command() {
     } catch (error) {
       showToast({
         style: Toast.Style.Failure,
-        title: "Error deleting blink",
+        title: "Error deleting Blink",
         message: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
@@ -126,7 +171,7 @@ export default function Command() {
   return (
     <List 
       isLoading={isLoading}
-      searchBarPlaceholder="Search blinks..."
+      searchBarPlaceholder="Search Blinks..."
       onSearchTextChange={setSearchText}
       searchBarAccessory={
         <List.Dropdown
