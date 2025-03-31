@@ -8,6 +8,8 @@ export interface Blink {
   source?: string;
   description?: string;
   createdOn: Date;
+  reminderDate?: Date;
+  isCompleted?: boolean;
 }
 
 const BLINKS_STORAGE_KEY = "blinks";
@@ -20,7 +22,9 @@ export async function getBlinks(): Promise<Blink[]> {
   // Convert stored dates back to Date objects
   return storedBlinks.map((blink: any) => ({
     ...blink,
-    createdOn: new Date(blink.createdOn)
+    createdOn: new Date(blink.createdOn),
+    reminderDate: blink.reminderDate ? new Date(blink.reminderDate) : undefined,
+    isCompleted: blink.isCompleted || false
   }));
 }
 
@@ -34,4 +38,12 @@ export async function deleteBlink(id: string): Promise<void> {
   const blinks = await getBlinks();
   const filteredBlinks = blinks.filter(blink => blink.id !== id);
   await LocalStorage.setItem(BLINKS_STORAGE_KEY, JSON.stringify(filteredBlinks));
+}
+
+export async function toggleBlinkCompletion(id: string): Promise<void> {
+  const blinks = await getBlinks();
+  const updatedBlinks = blinks.map(blink => 
+    blink.id === id ? { ...blink, isCompleted: !blink.isCompleted } : blink
+  );
+  await LocalStorage.setItem(BLINKS_STORAGE_KEY, JSON.stringify(updatedBlinks));
 } 

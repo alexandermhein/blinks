@@ -1,7 +1,9 @@
 import { ActionPanel, Action, Icon, List, showToast, Toast, Detail } from "@raycast/api";
-import { useEffect, useState, useMemo } from "react";
-import { Blink, getBlinks, deleteBlink } from "./utils/storage";
-import { getBlinkIcon, getBlinkTitle, getBlinkIconColor, BlinkType } from "./utils/design";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Blink, getBlinks, deleteBlink, toggleBlinkCompletion } from "./utils/storage";
+import { getBlinkIcon, getBlinkTitle, getBlinkIconColor, getBlinkColor, BlinkType } from "./utils/design";
+import { SortOption } from "./types/blinks";
+import BlinkItem from "./components/BlinkItem";
 
 // Format date to "MMM DD, YYYY" format
 const formatDate = (date: Date | string) => {
@@ -16,11 +18,10 @@ const formatDate = (date: Date | string) => {
 // Define fixed category order
 const CATEGORY_ORDER: BlinkType[] = ["reminder", "thought", "bookmark", "quote"];
 
-type SortOption = "newest" | "title";
-
 interface BlinkItemProps {
   blink: Blink;
   onDelete: (id: string) => Promise<void>;
+  onToggle: (id: string) => Promise<void>;
 }
 
 interface BlinkDetailProps {
@@ -56,6 +57,7 @@ const BlinkDetail = ({ blink, onDelete }: BlinkDetailProps) => {
             title="Delete Blink"
             icon={Icon.Trash}
             style={Action.Style.Destructive}
+            shortcut={{ modifiers: ["cmd"], key: "backspace" }}
             onAction={() => onDelete(blink.id)}
           />
         </ActionPanel>
@@ -63,36 +65,6 @@ const BlinkDetail = ({ blink, onDelete }: BlinkDetailProps) => {
     />
   );
 };
-
-// Extracted BlinkItem component for better maintainability
-const BlinkItem = ({ blink, onDelete }: BlinkItemProps) => (
-  <List.Item
-    key={blink.id}
-    icon={{ source: getBlinkIcon(blink.type), tintColor: getBlinkIconColor(blink.type) }}
-    title={blink.title}
-    subtitle={blink.description}
-    accessories={[
-      ...(blink.source ? [{ icon: Icon.Link, tooltip: blink.source }] : []),
-      { text: formatDate(blink.createdOn) },
-    ]}
-    actions={
-      <ActionPanel>
-        <Action.Push
-          title="Show Details"
-          target={<BlinkDetail blink={blink} onDelete={onDelete} />}
-        />
-        <Action.CopyToClipboard content={blink.title} />
-        {blink.source && <Action.OpenInBrowser url={blink.source} />}
-        <Action
-          title="Delete Blink"
-          icon={Icon.Trash}
-          style={Action.Style.Destructive}
-          onAction={() => onDelete(blink.id)}
-        />
-      </ActionPanel>
-    }
-  />
-);
 
 export default function Command() {
   const [blinks, setBlinks] = useState<Blink[]>([]);
@@ -105,7 +77,7 @@ export default function Command() {
     loadBlinks();
   }, []);
 
-  async function loadBlinks() {
+  const loadBlinks = useCallback(async () => {
     try {
       const storedBlinks = await getBlinks();
       setBlinks(storedBlinks);
@@ -118,12 +90,12 @@ export default function Command() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function handleDelete(id: string) {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteBlink(id);
-      setBlinks(blinks.filter(blink => blink.id !== id));
+      setBlinks(prevBlinks => prevBlinks.filter(blink => blink.id !== id));
       showToast({
         style: Toast.Style.Success,
         title: "Blink deleted",
@@ -135,7 +107,18 @@ export default function Command() {
         message: error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }
+  }, []);
+
+  const handleToggle = useCallback(async (id: string) => {
+    try {
+      await toggleBlinkCompletion(id);
+      setBlinks(prevBlinks => prevBlinks.map(blink => 
+        blink.id === id ? { ...blink, isCompleted: !blink.isCompleted } : blink
+      ));
+    } catch (error) {
+      throw error;
+    }
+  }, []);
 
   // Optimized sorting and filtering using useMemo
   const { sortedAndFilteredBlinks, groupedBlinks } = useMemo(() => {
@@ -175,7 +158,7 @@ export default function Command() {
       onSearchTextChange={setSearchText}
       searchBarAccessory={
         <List.Dropdown
-          tooltip="View Options"
+          tooltip="View options"
           value={sortBy}
           onChange={(value) => {
             if (value === "toggle-sections") {
@@ -214,14 +197,24 @@ export default function Command() {
           return (
             <List.Section key={type} title={getBlinkTitle(type)}>
               {typeBlinks.map(blink => (
-                <BlinkItem key={blink.id} blink={blink} onDelete={handleDelete} />
+                <BlinkItem 
+                  key={blink.id} 
+                  blink={blink} 
+                  onDelete={handleDelete}
+                  onToggle={handleToggle}
+                />
               ))}
             </List.Section>
           );
         })
       ) : (
         sortedAndFilteredBlinks.map(blink => (
-          <BlinkItem key={blink.id} blink={blink} onDelete={handleDelete} />
+          <BlinkItem 
+            key={blink.id} 
+            blink={blink} 
+            onDelete={handleDelete}
+            onToggle={handleToggle}
+          />
         ))
       )}
     </List>

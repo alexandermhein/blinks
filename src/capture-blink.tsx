@@ -10,6 +10,7 @@ interface BlinkValues {
   title: string;
   source: string;
   useBrowserTab: boolean;
+  reminderDate?: Date;
 }
 
 export default function Command() {
@@ -42,8 +43,17 @@ export default function Command() {
       if (!isValidBlinkType(values.type)) {
         showToast({
           style: Toast.Style.Failure,
-          title: "Invalid blink type",
-          message: "Please select a valid blink type",
+          title: "Invalid Blink",
+          message: "Please select a valid Blink type",
+        });
+        return;
+      }
+
+      if (values.type === "reminder" && !values.reminderDate) {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Missing reminder date",
+          message: "Please select a date",
         });
         return;
       }
@@ -53,20 +63,21 @@ export default function Command() {
         type: values.type,
         title: values.title,
         ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
+        ...(values.type === "reminder" && values.reminderDate ? { reminderDate: values.reminderDate } : {}),
         createdOn: new Date(),
       };
 
       saveBlink(blink).then(() => {
         showToast({
           style: Toast.Style.Success,
-          title: "Blinked!",
+          title: "Blinked",
           message: `"${values.title}" saved`,
         });
         popToRoot();
       }).catch((error) => {
         showToast({
           style: Toast.Style.Failure,
-          title: "Error saving blink",
+          title: "Error saving Blink",
           message: error instanceof Error ? error.message : "Unknown error occurred",
         });
       });
@@ -79,6 +90,9 @@ export default function Command() {
   const handleTypeChange = (value: string) => {
     if (isValidBlinkType(value)) {
       setValue("type", value);
+      if (value !== "reminder") {
+        setValue("reminderDate", undefined);
+      }
     }
   };
 
@@ -101,6 +115,15 @@ export default function Command() {
         <Form.Dropdown.Item value="bookmark" title="Bookmark" />
         <Form.Dropdown.Item value="quote" title="Quote" />
       </Form.Dropdown>
+      {itemProps.type.value === "reminder" && (
+        <Form.DatePicker
+          id="reminderDate"
+          title="Date"
+          type={Form.DatePicker.Type.DateTime}
+          value={itemProps.reminderDate?.value}
+          onChange={(date) => setValue("reminderDate", date || undefined)}
+        />
+      )}
       <Form.TextArea
         title="Blink"
         placeholder="Capture a Blink ..."
