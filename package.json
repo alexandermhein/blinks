@@ -36,7 +36,8 @@
     "typescript": "^5.8.2"
   },
   "scripts": {
-    "build": "ray build",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && ray build",
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
