@@ -11,6 +11,20 @@
   "license": "MIT",
   "commands": [
     {
+      "name": "quick-capture",
+      "title": "Quick Capture",
+      "description": "Quickly capture a thought from the search bar.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "Enter your thought...",
+          "required": true
+        }
+      ]
+    },
+    {
       "name": "capture-blink",
       "title": "Capture Blink",
       "description": "Capture a thought, reminder, bookmark or quote.",
