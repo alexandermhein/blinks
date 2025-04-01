@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Form, ActionPanel, Action, showToast, Toast, environment, useNavigation } from "@raycast/api";
+import { Form, ActionPanel, Action, showToast, Toast, useNavigation } from "@raycast/api";
 import { useForm, FormValidation } from "@raycast/utils";
-import { BrowserExtension } from "@raycast/api";
 import { updateBlink } from "../utils/storage";
 import { BlinkType, isValidBlinkType } from "../utils/design";
 import { Blink } from "../types/blinks";
