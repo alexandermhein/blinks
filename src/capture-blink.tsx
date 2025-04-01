@@ -5,6 +5,8 @@ import { BrowserExtension } from "@raycast/api";
 import { saveBlink } from "./utils/storage";
 import { BlinkType, isValidBlinkType } from "./utils/design";
 import { processQuote } from "./utils/ai-quotes";
+import { processThought } from "./utils/ai-thoughts";
+import { processReminder } from "./utils/ai-reminders";
 
 interface BlinkValues {
   type: BlinkType;
@@ -51,69 +53,63 @@ export default function Command() {
         return;
       }
 
-      if (values.type === "reminder" && !values.reminderDate) {
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Missing reminder date",
-          message: "Please select a date",
-        });
-        return;
-      }
-
       let processedTitle = values.title;
       let author: string | undefined;
       let description: string | undefined;
 
-      if (values.type === "quote") {
+      if (values.type === "quote" || values.type === "thought" || values.type === "reminder") {
         setIsProcessing(true);
         const loadingToast = await showToast({
           style: Toast.Style.Animated,
-          title: "Capturing Blink...",
+          title: "Processing Blink...",
         });
 
         try {
-          const processed = await processQuote(values.title);
-          processedTitle = processed.formattedQuote;
-          author = processed.author;
-          description = processed.description;
+          if (values.type === "quote") {
+            const processed = await processQuote(values.title);
+            processedTitle = processed.formattedQuote;
+            author = processed.author;
+            description = processed.description;
+          } else if (values.type === "thought") {
+            const processed = await processThought(values.title);
+            processedTitle = processed.title;
+            description = processed.description;
+          } else {
+            const processed = await processReminder(values.title);
+            processedTitle = processed.title;
+            description = processed.description;
+          }
           await loadingToast.hide();
         } catch (error) {
           await loadingToast.hide();
           showToast({
             style: Toast.Style.Failure,
-            title: "Error processing quote",
-            message: "Could not analyze quote with AI",
+            title: `Error processing ${values.type}`,
+            message: error instanceof Error ? error.message : "Could not analyze with AI",
           });
+          setIsProcessing(false);
           return;
         } finally {
           setIsProcessing(false);
         }
       }
 
-      const savingToast = await showToast({
-        style: Toast.Style.Animated,
-        title: "Saving Blink",
-        message: "Please wait...",
-      });
-
-      const blink = {
-        id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-        type: values.type,
-        title: processedTitle,
-        ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
-        ...(values.type === "reminder" && values.reminderDate ? { reminderDate: values.reminderDate } : {}),
-        ...(author ? { author } : {}),
-        ...(description ? { description } : {}),
-        createdOn: new Date(),
-      };
-
       try {
+        const blink = {
+          id: Date.now().toString(36) + Math.random().toString(36).substring(2),
+          type: values.type,
+          title: processedTitle,
+          ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
+          ...(values.reminderDate ? { reminderDate: values.reminderDate } : {}),
+          ...(author ? { author } : {}),
+          ...(description ? { description } : {}),
+          createdOn: new Date(),
+        };
+        
         await saveBlink(blink);
-        await savingToast.hide();
-        await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
         popToRoot();
+        await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
       } catch (error) {
-        await savingToast.hide();
         showToast({
           style: Toast.Style.Failure,
           title: "Error saving Blink",
@@ -160,7 +156,7 @@ export default function Command() {
       {itemProps.type.value === "reminder" && (
         <Form.DatePicker
           id="reminderDate"
-          title="Date"
+          title="Date (Optional)"
           type={Form.DatePicker.Type.DateTime}
           value={itemProps.reminderDate?.value}
           onChange={(date) => setValue("reminderDate", date || undefined)}
@@ -168,7 +164,7 @@ export default function Command() {
       )}
       <Form.TextArea
         title="Blink"
-        placeholder={itemProps.type.value === "quote" ? "Paste a quote to analyze..." : "Capture a Blink ..."}
+        placeholder="Capture ..."
         {...itemProps.title}
       />
       {canAccessBrowser && hasActiveTab && (

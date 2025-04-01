@@ -57,7 +57,7 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
         ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
         ...(values.type === "reminder" && values.reminderDate ? { reminderDate: values.reminderDate } : {}),
         ...(values.type === "quote" && values.author ? { author: values.author } : {}),
-        ...(values.type === "quote" && values.description ? { description: values.description } : {}),
+        ...(values.description ? { description: values.description } : {}),
       };
 
       updateBlink(updatedBlink).then(() => {
@@ -122,11 +122,26 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
           onChange={(date) => setValue("reminderDate", date || undefined)}
         />
       )}
-      <Form.TextArea
-        title="Blink"
-        placeholder="Capture a Blink ..."
-        {...itemProps.title}
-      />
+      {itemProps.type.value === "reminder" ? (
+        <Form.TextField
+          title="Blink"
+          placeholder="Capture a Blink ..."
+          {...itemProps.title}
+        />
+      ) : (
+        <Form.TextArea
+          title="Blink"
+          placeholder="Capture a Blink ..."
+          {...itemProps.title}
+        />
+      )}
+      {itemProps.type.value === "reminder" && (
+        <Form.TextArea
+          title="Description"
+          placeholder="Add context or notes about the reminder"
+          {...itemProps.description}
+        />
+      )}
       {itemProps.type.value === "quote" && (
         <>
           <Form.TextField
@@ -141,11 +156,13 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
           />
         </>
       )}
-      <Form.TextField
-        title="Source"
-        placeholder="https://example.com"
-        {...itemProps.source}
-      />
+      {blink.source && (
+        <Form.TextField
+          title="Source"
+          placeholder="https://example.com"
+          {...itemProps.source}
+        />
+      )}
     </Form>
   );
 } 
