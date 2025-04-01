@@ -1,4 +1,4 @@
-import { Form, ActionPanel, Action, showToast, Toast, environment, popToRoot, showHUD } from "@raycast/api";
+import { Form, ActionPanel, Action, environment, popToRoot, showHUD } from "@raycast/api";
 import { useForm, FormValidation } from "@raycast/utils";
 import { useEffect, useState, useMemo } from "react";
 import { BrowserExtension } from "@raycast/api";
@@ -8,6 +8,7 @@ import { processQuote } from "./utils/ai-quotes";
 import { processThought } from "./utils/ai-thoughts";
 import { processReminder } from "./utils/ai-reminders";
 import { processBookmark } from "./utils/ai-bookmarks";
+import { createBlink, showLoadingToast, showErrorToast, showSuccessToast, formatBlinkType, isValidUrl, getUrlDomain } from "./utils/blink-utils";
 
 interface BlinkValues {
   type: BlinkType;
@@ -46,11 +47,7 @@ export default function Command() {
     },
     onSubmit: async (values) => {
       if (!isValidBlinkType(values.type)) {
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Invalid Blink",
-          message: "Please select a valid Blink type",
-        });
+        showErrorToast("Invalid Blink", "Please select a valid Blink type");
         return;
       }
 
@@ -60,10 +57,7 @@ export default function Command() {
 
       if (values.type === "quote" || values.type === "thought" || values.type === "reminder" || values.type === "bookmark") {
         setIsProcessing(true);
-        const loadingToast = await showToast({
-          style: Toast.Style.Animated,
-          title: "Processing Blink...",
-        });
+        const loadingToast = await showLoadingToast("Processing Blink...");
 
         try {
           if (values.type === "quote") {
@@ -87,11 +81,7 @@ export default function Command() {
           await loadingToast.hide();
         } catch (error) {
           await loadingToast.hide();
-          showToast({
-            style: Toast.Style.Failure,
-            title: `Error processing ${values.type}`,
-            message: error instanceof Error ? error.message : "Could not analyze with AI",
-          });
+          showErrorToast(`Error processing ${values.type}`, error instanceof Error ? error.message : "Could not analyze with AI");
           setIsProcessing(false);
           return;
         } finally {
@@ -100,26 +90,18 @@ export default function Command() {
       }
 
       try {
-        const blink = {
-          id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-          type: values.type,
-          title: processedTitle,
-          ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
-          ...(values.reminderDate ? { reminderDate: values.reminderDate } : {}),
-          ...(author ? { author } : {}),
-          ...(description ? { description } : {}),
-          createdOn: new Date(),
-        };
+        const blink = createBlink(values.type, processedTitle, {
+          description,
+          author,
+          source: itemProps.source.value,
+          reminderDate: values.reminderDate,
+        });
         
         await saveBlink(blink);
         popToRoot();
-        await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
+        await showHUD(`${formatBlinkType(values.type)} captured  ✅`);
       } catch (error) {
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Error saving Blink",
-          message: error instanceof Error ? error.message : "Unknown error occurred",
-        });
+        showErrorToast("Error saving Blink", error instanceof Error ? error.message : "Unknown error occurred");
       }
     },
     validation: {
@@ -145,25 +127,13 @@ export default function Command() {
             setValue("source", activeTab.url);
             setValue("useBrowserTab", true);
             
-            const url = new URL(activeTab.url);
-            showToast({
-              style: Toast.Style.Success,
-              title: "Bookmark captured",
-              message: url.hostname,
-            });
+            const domain = getUrlDomain(activeTab.url);
+            showSuccessToast("Bookmark captured", domain);
           } else {
-            showToast({
-              style: Toast.Style.Failure,
-              title: "No active tab",
-              message: "Could not find an active browser tab",
-            });
+            showErrorToast("No active tab", "Could not find an active browser tab");
           }
         } catch (error) {
-          showToast({
-            style: Toast.Style.Failure,
-            title: "Error",
-            message: "Could not fetch bookmark info from browser tab",
-          });
+          showErrorToast("Error", "Could not fetch bookmark info from browser tab");
         }
       } else if (value !== "bookmark") {
         // Clear bookmark-related fields when switching to other types
@@ -225,25 +195,13 @@ export default function Command() {
                 
                 if (activeTab?.url) {
                   setValue("source", activeTab.url);
-                  const url = new URL(activeTab.url);
-                  showToast({
-                    style: Toast.Style.Success,
-                    title: "URL captured",
-                    message: url.hostname,
-                  });
+                  const domain = getUrlDomain(activeTab.url);
+                  showSuccessToast("URL captured", domain);
                 } else {
-                  showToast({
-                    style: Toast.Style.Failure,
-                    title: "No active tab",
-                    message: "Could not find an active browser tab",
-                  });
+                  showErrorToast("No active tab", "Could not find an active browser tab");
                 }
               } catch (error) {
-                showToast({
-                  style: Toast.Style.Failure,
-                  title: "Error",
-                  message: "Could not fetch URL from browser tab",
-                });
+                showErrorToast("Error", "Could not fetch URL from browser tab");
               }
             } else {
               setValue("source", "");

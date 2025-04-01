@@ -49,5 +49,24 @@ Title:`,
 
 Text: ${text}
 
-URL:`
+URL:`,
+  dateExtraction: (text: string) => {
+    const today = new Date();
+    const todayISO = today.toISOString();
+    
+    return `Extract the date and time from this reminder text. If there is no date/time, respond with "NO_DATE". Only respond with the ISO date string or "NO_DATE", nothing else.
+
+Rules:
+1. Convert relative dates (e.g. "in 4 days", "tomorrow", "next week") to actual dates
+2. Use today's date (${todayISO}) as reference for relative dates
+3. Return dates in ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)
+
+Example:
+Input: "Call mum in 4 days"
+Output: "${new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString()}"
+
+Text: ${text}
+
+Date:`;
+  }
 } as const; 

@@ -1,4 +1,4 @@
-import { AI, showToast, Toast, environment, BrowserExtension, showHUD } from "@raycast/api";
+import { AI, environment, BrowserExtension, showHUD } from "@raycast/api";
 import { saveBlink } from "./utils/storage";
 import { processThought } from "./utils/ai-thoughts";
 import { processReminder } from "./utils/ai-reminders";
@@ -6,6 +6,7 @@ import { processQuote } from "./utils/ai-quotes";
 import { processBookmark } from "./utils/ai-bookmarks";
 import { detectBlinkType, removePrefix, PROMPTS } from "./utils/quick-capture-utils";
 import { BlinkType } from "./utils/design";
+import { createBlink, showLoadingToast, showErrorToast, formatBlinkType } from "./utils/blink-utils";
 
 interface CommandProps {
   arguments: {
@@ -18,6 +19,7 @@ interface ProcessedBlink {
   description?: string;
   author?: string;
   source?: string;
+  reminderDate?: Date;
 }
 
 interface ProcessedBookmarkResult {
@@ -28,18 +30,11 @@ interface ProcessedBookmarkResult {
 
 export default async function Command(props: CommandProps) {
   if (!props.arguments.text) {
-    showToast({
-      style: Toast.Style.Failure,
-      title: "No text provided",
-      message: "Please enter some text to capture",
-    });
+    showErrorToast("No text provided", "Please enter some text to capture");
     return;
   }
 
-  const loadingToast = await showToast({
-    style: Toast.Style.Animated,
-    title: "Capturing...",
-  });
+  const loadingToast = await showLoadingToast("Capturing...");
 
   try {
     const input = props.arguments.text.trim();
@@ -90,7 +85,28 @@ export default async function Command(props: CommandProps) {
     } else {
       switch (type) {
         case "reminder":
+          // Extract date first
+          let reminderDate: Date | undefined;
+          try {
+            const dateResponse = await AI.ask(PROMPTS.dateExtraction(content), {
+              model: AI.Model["Google_Gemini_2.0_Flash"],
+              creativity: "low",
+            });
+            const extractedDate = dateResponse.trim();
+            if (extractedDate !== "NO_DATE") {
+              reminderDate = new Date(extractedDate);
+            }
+          } catch (error) {
+            // Silently handle date extraction errors
+          }
+          
           processed = await processReminder(content);
+          if (reminderDate) {
+            processed = {
+              ...processed,
+              reminderDate
+            };
+          }
           break;
         case "quote":
           const quoteResult = await processQuote(content);
@@ -106,26 +122,19 @@ export default async function Command(props: CommandProps) {
     }
     
     // Create and save the blink
-    const blink = {
-      id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-      type,
-      title: processed.title,
-      ...(processed.description && { description: processed.description }),
-      ...(processed.author && { author: processed.author }),
-      ...(source && { source }),
-      createdOn: new Date(),
-    };
+    const blink = createBlink(type, processed.title, {
+      description: processed.description,
+      author: processed.author,
+      source,
+      reminderDate: processed.reminderDate,
+    });
     
     await saveBlink(blink);
     await loadingToast.hide();
-    await showHUD(`${type.charAt(0).toUpperCase() + type.slice(1)} captured  ✅`);
+    await showHUD(`${formatBlinkType(type)} captured  ✅`);
   } catch (error) {
     await loadingToast.hide();
-    showToast({
-      style: Toast.Style.Failure,
-      title: "Failed to save blink",
-      message: error instanceof Error ? error.message : "Unknown error occurred",
-    });
+    showErrorToast("Failed to save blink", error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
