@@ -89,7 +89,6 @@ Respond with ONLY the JSON object, no markdown formatting or additional text. Ex
       };
     }
   } catch (error) {
-    console.error('Error processing quote:', error);
     return {
       formattedQuote: quote.trim(),
     };

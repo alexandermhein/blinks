@@ -45,8 +45,7 @@ Respond with ONLY the JSON object, no markdown formatting or additional text. Ex
 
 Rules for the summary:
 1. Should capture the main idea and context
-2. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...").
-3. Use sentence casing (except for proper nouns, abbreviations, etc.)
+2. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...")
 
 Thought: "${thought}"
 

@@ -68,9 +68,8 @@ Rules for the description:
 1. Focus ONLY on contextual details like timing, location, conditions, or requirements
 2. Do NOT repeat the core action from the title
 3. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...")
-4. Use sentence casing (except for proper nouns, abbreviations, etc.)
-5. Keep it concise but informative
-6. If there are no contextual details, return an empty string
+4. Keep it concise but informative
+5. If there are no contextual details, return an empty string
 
 Examples:
 Input: "Remind me to pick up dry cleaning when I get to downtown"

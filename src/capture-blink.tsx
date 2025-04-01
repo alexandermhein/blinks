@@ -138,9 +138,8 @@ export default function Command() {
       } else if (value !== "bookmark") {
         // Clear bookmark-related fields when switching to other types
         setValue("useBrowserTab", false);
-        if (value !== "quote" && value !== "thought") {
-          setValue("source", "");
-        }
+        setValue("source", "");
+        setValue("title", ""); // Clear the title field when switching away from bookmark
       }
     }
   };

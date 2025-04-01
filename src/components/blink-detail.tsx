@@ -3,9 +3,10 @@ import { memo } from "react";
 import { BlinkDetailProps } from "../types/blinks";
 import { getBlinkTitle, getBlinkColor } from "../utils/design";
 import { formatDate } from "../utils/date";
+import EditBlinkForm from "./edit-blink-form";
 
 const BlinkDetail = memo(({ blink, onDelete }: BlinkDetailProps) => {
-  const { pop } = useNavigation();
+  const { pop, push } = useNavigation();
   const markdown = `## ${blink.title}
 
 ${blink.description ? blink.description : ""}`;
@@ -56,6 +57,21 @@ ${blink.description ? blink.description : ""}`;
               shortcut={{ modifiers: ["cmd"], key: "l" }}
             />
           )}
+          <Action
+            title="Edit Blink"
+            icon={Icon.Pencil}
+            shortcut={{ modifiers: ["cmd"], key: "e" }}
+            onAction={() => {
+              push(
+                <EditBlinkForm
+                  blink={blink}
+                  onSuccess={() => {
+                    pop();
+                  }}
+                />
+              );
+            }}
+          />
           <Action
             title="Delete Blink"
             icon={Icon.Trash}

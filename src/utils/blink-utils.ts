@@ -3,7 +3,7 @@ import { Blink } from "./storage";
 import { BlinkType } from "./design";
 
 /**
- * Creates a new blink with a unique ID
+ * Creates a new Blink with a unique ID
  */
 export function createBlink(
   type: BlinkType,
@@ -68,7 +68,7 @@ export function handleError(error: unknown, context: string): string {
 }
 
 /**
- * Formats a blink type for display (capitalizes first letter)
+ * Formats a Blink type for display (capitalizes first letter)
  */
 export function formatBlinkType(type: BlinkType): string {
   return type.charAt(0).toUpperCase() + type.slice(1);

@@ -29,12 +29,7 @@ interface ProcessedBookmarkResult {
 }
 
 export default async function Command(props: CommandProps) {
-  if (!props.arguments.text) {
-    showErrorToast("No text provided", "Please enter some text to capture");
-    return;
-  }
-
-  const loadingToast = await showLoadingToast("Capturing...");
+  const loadingToast = await showLoadingToast("Capturing ...");
 
   try {
     const input = props.arguments.text.trim();
@@ -55,12 +50,22 @@ export default async function Command(props: CommandProps) {
             source = activeTab.url;
           }
         } catch (error) {
-          // Silently handle browser extension errors
+          await loadingToast.hide();
+          await showErrorToast(
+            "Browser extension error",
+            "Could not access browser tabs. Please check browser extension permissions."
+          );
+          return;
         }
       }
 
       if (!source) {
-        throw new Error("No URL found in text and could not get active browser tab");
+        await loadingToast.hide();
+        await showErrorToast(
+          "No URL found",
+          "Could not find a URL in the text or active browser tab."
+        );
+        return;
       }
 
       // Step 2: Get page title and process with AI
@@ -76,65 +81,93 @@ export default async function Command(props: CommandProps) {
       }
 
       // Step 3: Generate description using AI
-      const bookmarkResult = await processBookmark(pageTitle, source);
-      
-      processed = {
-        title: bookmarkResult.title,
-        description: bookmarkResult.description,
-      };
+      try {
+        const bookmarkResult = await processBookmark(pageTitle, source);
+        processed = {
+          title: bookmarkResult.title,
+          description: bookmarkResult.description,
+        };
+      } catch (error) {
+        await loadingToast.hide();
+        await showErrorToast(
+          "Processing error",
+          "Failed to process bookmark. Please try again."
+        );
+        return;
+      }
     } else {
-      switch (type) {
-        case "reminder":
-          // Extract date first
-          let reminderDate: Date | undefined;
-          try {
-            const dateResponse = await AI.ask(PROMPTS.dateExtraction(content), {
-              model: AI.Model["Google_Gemini_2.0_Flash"],
-              creativity: "low",
-            });
-            const extractedDate = dateResponse.trim();
-            if (extractedDate !== "NO_DATE") {
-              reminderDate = new Date(extractedDate);
+      try {
+        switch (type) {
+          case "reminder":
+            // Extract date first
+            let reminderDate: Date | undefined;
+            try {
+              const dateResponse = await AI.ask(PROMPTS.dateExtraction(content), {
+                model: AI.Model["Google_Gemini_2.0_Flash"],
+                creativity: "low",
+              });
+              const extractedDate = dateResponse.trim();
+              if (extractedDate !== "NO_DATE") {
+                reminderDate = new Date(extractedDate);
+              }
+            } catch (error) {
+              // Silently handle date extraction errors
             }
-          } catch (error) {
-            // Silently handle date extraction errors
-          }
-          
-          processed = await processReminder(content);
-          if (reminderDate) {
+            
+            processed = await processReminder(content);
+            if (reminderDate) {
+              processed = {
+                ...processed,
+                reminderDate
+              };
+            }
+            break;
+          case "quote":
+            const quoteResult = await processQuote(content);
             processed = {
-              ...processed,
-              reminderDate
+              title: quoteResult.formattedQuote,
+              description: quoteResult.description,
+              author: quoteResult.author
             };
-          }
-          break;
-        case "quote":
-          const quoteResult = await processQuote(content);
-          processed = {
-            title: quoteResult.formattedQuote,
-            description: quoteResult.description,
-            author: quoteResult.author
-          };
-          break;
-        default:
-          processed = await processThought(content);
+            break;
+          default:
+            processed = await processThought(content);
+        }
+      } catch (error) {
+        await loadingToast.hide();
+        await showErrorToast(
+          "Processing error",
+          `${type}: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+        return;
       }
     }
     
     // Create and save the blink
-    const blink = createBlink(type, processed.title, {
-      description: processed.description,
-      author: processed.author,
-      source,
-      reminderDate: processed.reminderDate,
-    });
-    
-    await saveBlink(blink);
-    await loadingToast.hide();
-    await showHUD(`${formatBlinkType(type)} captured  ✅`);
+    try {
+      const blink = createBlink(type, processed.title, {
+        description: processed.description,
+        author: processed.author,
+        source,
+        reminderDate: processed.reminderDate,
+      });
+      
+      await saveBlink(blink);
+      await loadingToast.hide();
+      await showHUD(`${formatBlinkType(type)} captured  ✅`);
+    } catch (error) {
+      await loadingToast.hide();
+      await showErrorToast(
+        "Save error",
+        `${type}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
   } catch (error) {
     await loadingToast.hide();
-    showErrorToast("Failed to save blink", error instanceof Error ? error.message : "Unknown error occurred");
+    await showErrorToast(
+      "Unexpected error",
+      `${error instanceof Error ? error.message : "Unknown error"}`
+    );
   }
 }
 
@@ -148,4 +181,4 @@ async function extractUrlFromText(text: string): Promise<string | undefined> {
   } catch (error) {
     return undefined;
   }
-} 
+}

@@ -124,13 +124,13 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
       {itemProps.type.value === "reminder" ? (
         <Form.TextField
           title="Blink"
-          placeholder="Capture a Blink ..."
+          placeholder="Capture a Blink..."
           {...itemProps.title}
         />
       ) : (
         <Form.TextArea
           title="Blink"
-          placeholder="Capture a Blink ..."
+          placeholder="Capture a Blink..."
           {...itemProps.title}
         />
       )}
