@@ -122,11 +122,50 @@ export default function Command() {
     },
   });
 
-  const handleTypeChange = (value: string) => {
+  const handleTypeChange = async (value: string) => {
     if (isValidBlinkType(value)) {
       setValue("type", value);
       if (value !== "reminder") {
         setValue("reminderDate", undefined);
+      }
+
+      // Handle bookmark type selection
+      if (value === "bookmark" && canAccessBrowser) {
+        try {
+          const tabs = await BrowserExtension.getTabs();
+          const activeTab = tabs.find(tab => tab.active);
+          
+          if (activeTab?.title && activeTab?.url) {
+            setValue("title", activeTab.title);
+            setValue("source", activeTab.url);
+            setValue("useBrowserTab", true);
+            
+            const url = new URL(activeTab.url);
+            showToast({
+              style: Toast.Style.Success,
+              title: "Bookmark captured",
+              message: url.hostname,
+            });
+          } else {
+            showToast({
+              style: Toast.Style.Failure,
+              title: "No active tab",
+              message: "Could not find an active browser tab",
+            });
+          }
+        } catch (error) {
+          showToast({
+            style: Toast.Style.Failure,
+            title: "Error",
+            message: "Could not fetch bookmark info from browser tab",
+          });
+        }
+      } else if (value !== "bookmark") {
+        // Clear bookmark-related fields when switching to other types
+        setValue("useBrowserTab", false);
+        if (value !== "quote" && value !== "thought") {
+          setValue("source", "");
+        }
       }
     }
   };
