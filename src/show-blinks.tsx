@@ -1,9 +1,11 @@
 import { ActionPanel, Action, Icon, List, showToast, Toast, Detail } from "@raycast/api";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Blink, getBlinks, deleteBlink, toggleBlinkCompletion } from "./utils/storage";
+import { Blink, getBlinks, deleteBlink, toggleBlinkCompletion, cleanupCompletedReminders } from "./utils/storage";
 import { getBlinkIcon, getBlinkTitle, getBlinkIconColor, getBlinkColor, BlinkType } from "./utils/design";
 import { SortOption } from "./types/blinks";
-import BlinkItem from "./components/BlinkItem";
+import BlinkItem from "./components/blink-item";
+import EditBlinkForm from "./components/edit-blink-form";
+import BlinkDetail from "./components/blink-detail";
 
 // Format date to "MMM DD, YYYY" format
 const formatDate = (date: Date | string) => {
@@ -27,44 +29,8 @@ interface BlinkItemProps {
 interface BlinkDetailProps {
   blink: Blink;
   onDelete: (id: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
-
-const BlinkDetail = ({ blink, onDelete }: BlinkDetailProps) => {
-  const markdown = `## ${blink.title}`;
-
-  return (
-    <Detail
-      markdown={markdown}
-      metadata={
-        <Detail.Metadata>
-          <Detail.Metadata.TagList title="Type">
-            <Detail.Metadata.TagList.Item text={getBlinkTitle(blink.type)} />
-          </Detail.Metadata.TagList>
-          <Detail.Metadata.Label title="Created" text={formatDate(blink.createdOn)} />
-          {blink.source && (
-            <Detail.Metadata.Link title="Source" text={blink.source} target={blink.source} />
-          )}
-          {blink.description && (
-            <Detail.Metadata.Label title="Description" text={blink.description} />
-          )}
-        </Detail.Metadata>
-      }
-      actions={
-        <ActionPanel>
-          <Action.CopyToClipboard content={blink.title} />
-          {blink.source && <Action.OpenInBrowser url={blink.source} />}
-          <Action
-            title="Delete Blink"
-            icon={Icon.Trash}
-            style={Action.Style.Destructive}
-            shortcut={{ modifiers: ["cmd"], key: "backspace" }}
-            onAction={() => onDelete(blink.id)}
-          />
-        </ActionPanel>
-      }
-    />
-  );
-};
 
 export default function Command() {
   const [blinks, setBlinks] = useState<Blink[]>([]);
@@ -73,12 +39,9 @@ export default function Command() {
   const [searchText, setSearchText] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
 
-  useEffect(() => {
-    loadBlinks();
-  }, []);
-
   const loadBlinks = useCallback(async () => {
     try {
+      await cleanupCompletedReminders();
       const storedBlinks = await getBlinks();
       setBlinks(storedBlinks);
     } catch (error) {
@@ -91,6 +54,10 @@ export default function Command() {
       setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    loadBlinks();
+  }, [loadBlinks]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -127,6 +94,14 @@ export default function Command() {
     );
 
     const sorted = [...filtered].sort((a, b) => {
+      // Special handling for reminders - sort by reminder date
+      if (a.type === "reminder" && b.type === "reminder") {
+        const dateA = new Date(a.reminderDate || "");
+        const dateB = new Date(b.reminderDate || "");
+        return dateA.getTime() - dateB.getTime();
+      }
+      
+      // For non-reminders or mixed types, use the selected sort option
       if (sortBy === "newest") {
         return new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime();
       }
@@ -202,6 +177,7 @@ export default function Command() {
                   blink={blink} 
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onRefresh={loadBlinks}
                 />
               ))}
             </List.Section>
@@ -214,6 +190,7 @@ export default function Command() {
             blink={blink} 
             onDelete={handleDelete}
             onToggle={handleToggle}
+            onRefresh={loadBlinks}
           />
         ))
       )}

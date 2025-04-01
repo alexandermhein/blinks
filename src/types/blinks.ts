@@ -4,6 +4,7 @@ export interface BlinkItemProps {
   blink: Blink;
   onDelete: (id: string) => Promise<void>;
   onToggle: (id: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 export interface BlinkDetailProps {
