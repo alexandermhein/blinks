@@ -7,6 +7,7 @@ import { BlinkType, isValidBlinkType } from "./utils/design";
 import { processQuote } from "./utils/ai-quotes";
 import { processThought } from "./utils/ai-thoughts";
 import { processReminder } from "./utils/ai-reminders";
+import { processBookmark } from "./utils/ai-bookmarks";
 
 interface BlinkValues {
   type: BlinkType;
@@ -57,7 +58,7 @@ export default function Command() {
       let author: string | undefined;
       let description: string | undefined;
 
-      if (values.type === "quote" || values.type === "thought" || values.type === "reminder") {
+      if (values.type === "quote" || values.type === "thought" || values.type === "reminder" || values.type === "bookmark") {
         setIsProcessing(true);
         const loadingToast = await showToast({
           style: Toast.Style.Animated,
@@ -74,8 +75,12 @@ export default function Command() {
             const processed = await processThought(values.title);
             processedTitle = processed.title;
             description = processed.description;
-          } else {
+          } else if (values.type === "reminder") {
             const processed = await processReminder(values.title);
+            processedTitle = processed.title;
+            description = processed.description;
+          } else if (values.type === "bookmark" && itemProps.source.value) {
+            const processed = await processBookmark(values.title, itemProps.source.value);
             processedTitle = processed.title;
             description = processed.description;
           }
