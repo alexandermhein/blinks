@@ -21,6 +21,7 @@ export interface Blink {
   type: BlinkType;
   createdOn: Date;
   source?: string;
+  author?: string;
   reminderDate?: Date;
   isCompleted?: boolean;
 } 

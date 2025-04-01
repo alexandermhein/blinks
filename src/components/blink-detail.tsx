@@ -2,18 +2,11 @@ import { ActionPanel, Action, Icon, Detail } from "@raycast/api";
 import { memo } from "react";
 import { BlinkDetailProps } from "../types/blinks";
 import { getBlinkTitle } from "../utils/design";
-
-const formatDate = (date: Date | string) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
+import { formatDate } from "../utils/date";
 
 const BlinkDetail = memo(({ blink, onDelete }: BlinkDetailProps) => {
-  const markdown = `## ${blink.title}`;
+  const markdown = `## ${blink.title}
+${blink.type === "quote" && blink.description ? `\n${blink.description}` : ""}`;
 
   return (
     <Detail
@@ -23,13 +16,16 @@ const BlinkDetail = memo(({ blink, onDelete }: BlinkDetailProps) => {
           <Detail.Metadata.TagList title="Type">
             <Detail.Metadata.TagList.Item text={getBlinkTitle(blink.type)} />
           </Detail.Metadata.TagList>
-          <Detail.Metadata.Label title="Created" text={formatDate(blink.createdOn)} />
           {blink.source && (
             <Detail.Metadata.Link title="Source" text={blink.source} target={blink.source} />
           )}
-          {blink.description && (
-            <Detail.Metadata.Label title="Description" text={blink.description} />
+          {blink.author && (
+            <Detail.Metadata.Label title="Author" text={blink.author} />
           )}
+          {blink.description && blink.type !== "quote" && (
+            <Detail.Metadata.Label title="Context" text={blink.description} />
+          )}
+          <Detail.Metadata.Label title="Created" text={formatDate(blink.createdOn)} />
         </Detail.Metadata>
       }
       actions={

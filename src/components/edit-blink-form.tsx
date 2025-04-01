@@ -16,6 +16,8 @@ interface BlinkValues {
   title: string;
   source: string;
   reminderDate?: Date;
+  author?: string;
+  description?: string;
 }
 
 export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) {
@@ -26,6 +28,8 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
       title: blink.title,
       source: blink.source || "",
       reminderDate: blink.reminderDate ? new Date(blink.reminderDate) : undefined,
+      author: blink.author || "",
+      description: blink.description || "",
     },
     onSubmit(values) {
       if (!isValidBlinkType(values.type)) {
@@ -52,6 +56,8 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
         title: values.title,
         ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
         ...(values.type === "reminder" && values.reminderDate ? { reminderDate: values.reminderDate } : {}),
+        ...(values.type === "quote" && values.author ? { author: values.author } : {}),
+        ...(values.type === "quote" && values.description ? { description: values.description } : {}),
       };
 
       updateBlink(updatedBlink).then(() => {
@@ -121,6 +127,20 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
         placeholder="Capture a Blink ..."
         {...itemProps.title}
       />
+      {itemProps.type.value === "quote" && (
+        <>
+          <Form.TextField
+            title="Author"
+            placeholder="Enter the author's name"
+            {...itemProps.author}
+          />
+          <Form.TextArea
+            title="Description"
+            placeholder="Add context or notes about the quote"
+            {...itemProps.description}
+          />
+        </>
+      )}
       <Form.TextField
         title="Source"
         placeholder="https://example.com"

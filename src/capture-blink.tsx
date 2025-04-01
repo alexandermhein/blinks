@@ -1,9 +1,10 @@
-import { Form, ActionPanel, Action, showToast, Toast, environment, popToRoot } from "@raycast/api";
+import { Form, ActionPanel, Action, showToast, Toast, environment, popToRoot, showHUD } from "@raycast/api";
 import { useForm, FormValidation } from "@raycast/utils";
 import { useEffect, useState, useMemo } from "react";
 import { BrowserExtension } from "@raycast/api";
 import { saveBlink } from "./utils/storage";
 import { BlinkType, isValidBlinkType } from "./utils/design";
+import { processQuote } from "./utils/ai-quotes";
 
 interface BlinkValues {
   type: BlinkType;
@@ -16,6 +17,7 @@ interface BlinkValues {
 export default function Command() {
   const canAccessBrowser = useMemo(() => environment.canAccess(BrowserExtension), []);
   const [hasActiveTab, setHasActiveTab] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     async function checkActiveTab() {
@@ -39,7 +41,7 @@ export default function Command() {
       source: "",
       useBrowserTab: false,
     },
-    onSubmit(values) {
+    onSubmit: async (values) => {
       if (!isValidBlinkType(values.type)) {
         showToast({
           style: Toast.Style.Failure,
@@ -58,29 +60,66 @@ export default function Command() {
         return;
       }
 
+      let processedTitle = values.title;
+      let author: string | undefined;
+      let description: string | undefined;
+
+      if (values.type === "quote") {
+        setIsProcessing(true);
+        const loadingToast = await showToast({
+          style: Toast.Style.Animated,
+          title: "Capturing Blink...",
+        });
+
+        try {
+          const processed = await processQuote(values.title);
+          processedTitle = processed.formattedQuote;
+          author = processed.author;
+          description = processed.description;
+          await loadingToast.hide();
+        } catch (error) {
+          await loadingToast.hide();
+          showToast({
+            style: Toast.Style.Failure,
+            title: "Error processing quote",
+            message: "Could not analyze quote with AI",
+          });
+          return;
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+
+      const savingToast = await showToast({
+        style: Toast.Style.Animated,
+        title: "Saving Blink",
+        message: "Please wait...",
+      });
+
       const blink = {
         id: Date.now().toString(36) + Math.random().toString(36).substring(2),
         type: values.type,
-        title: values.title,
+        title: processedTitle,
         ...(itemProps.source.value ? { source: itemProps.source.value } : {}),
         ...(values.type === "reminder" && values.reminderDate ? { reminderDate: values.reminderDate } : {}),
+        ...(author ? { author } : {}),
+        ...(description ? { description } : {}),
         createdOn: new Date(),
       };
 
-      saveBlink(blink).then(() => {
-        showToast({
-          style: Toast.Style.Success,
-          title: "Blinked",
-          message: `"${values.title}" saved`,
-        });
+      try {
+        await saveBlink(blink);
+        await savingToast.hide();
+        await showHUD(`✅ ${values.type} captured`);
         popToRoot();
-      }).catch((error) => {
+      } catch (error) {
+        await savingToast.hide();
         showToast({
           style: Toast.Style.Failure,
           title: "Error saving Blink",
           message: error instanceof Error ? error.message : "Unknown error occurred",
         });
-      });
+      }
     },
     validation: {
       title: FormValidation.Required,
@@ -100,7 +139,10 @@ export default function Command() {
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Capture Blink" onSubmit={handleSubmit} />
+          <Action.SubmitForm 
+            title="Capture Blink" 
+            onSubmit={handleSubmit}
+          />
         </ActionPanel>
       }
     >
@@ -126,7 +168,7 @@ export default function Command() {
       )}
       <Form.TextArea
         title="Blink"
-        placeholder="Capture a Blink ..."
+        placeholder={itemProps.type.value === "quote" ? "Paste a quote to analyze..." : "Capture a Blink ..."}
         {...itemProps.title}
       />
       {canAccessBrowser && hasActiveTab && (

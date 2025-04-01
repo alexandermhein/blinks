@@ -99,7 +99,7 @@ const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps
       key={blink.id}
       icon={{ source: getBlinkIcon(blink.type), tintColor: getBlinkIconColor(blink.type) }}
       title={blink.title}
-      subtitle={blink.description}
+      subtitle={blink.type === "quote" ? blink.author : blink.description}
       accessories={[
         ...(blink.source ? [{ icon: Icon.Link, tooltip: blink.source }] : []),
         { text: formatDate(blink.createdOn) },
