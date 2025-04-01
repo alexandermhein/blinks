@@ -1,7 +1,7 @@
 import { ActionPanel, Action, Icon, Detail, useNavigation } from "@raycast/api";
 import { memo } from "react";
 import { BlinkDetailProps } from "../types/blinks";
-import { getBlinkTitle } from "../utils/design";
+import { getBlinkTitle, getBlinkColor } from "../utils/design";
 import { formatDate } from "../utils/date";
 
 const BlinkDetail = memo(({ blink, onDelete }: BlinkDetailProps) => {
@@ -26,6 +26,14 @@ ${blink.description ? blink.description : ""}`;
           <Detail.Metadata.TagList title="Type">
             <Detail.Metadata.TagList.Item text={getBlinkTitle(blink.type)} />
           </Detail.Metadata.TagList>
+          {blink.type === "reminder" && blink.reminderDate && (
+            <Detail.Metadata.TagList title="Reminder">
+              <Detail.Metadata.TagList.Item 
+                text={formatDate(blink.reminderDate)} 
+                color={getBlinkColor(blink.type)}
+              />
+            </Detail.Metadata.TagList>
+          )}
           {blink.source && (
             <Detail.Metadata.Link 
               title="Source" 
