@@ -110,7 +110,7 @@ export default function Command() {
       try {
         await saveBlink(blink);
         await savingToast.hide();
-        await showHUD(`✅ ${values.type} captured`);
+        await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
         popToRoot();
       } catch (error) {
         await savingToast.hide();
