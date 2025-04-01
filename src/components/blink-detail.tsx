@@ -42,7 +42,12 @@ ${blink.description ? blink.description : ""}`;
       actions={
         <ActionPanel>
           <Action.CopyToClipboard content={blink.title} />
-          {blink.source && <Action.OpenInBrowser url={blink.source} />}
+          {blink.source && (
+            <Action.OpenInBrowser 
+              url={blink.source} 
+              shortcut={{ modifiers: ["cmd"], key: "l" }}
+            />
+          )}
           <Action
             title="Delete Blink"
             icon={Icon.Trash}
