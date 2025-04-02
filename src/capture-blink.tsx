@@ -74,7 +74,11 @@ export default function Command() {
             processedTitle = processed.title;
             description = processed.description;
           } else if (values.type === "bookmark" && itemProps.source.value) {
-            const processed = await processBookmark(values.title, itemProps.source.value);
+            if (!isValidUrl(itemProps.source.value)) {
+              showErrorToast("Invalid URL", "Please enter a valid URL");
+              return;
+            }
+            const processed = await processBookmark(itemProps.source.value, itemProps.source.value);
             processedTitle = processed.title;
             description = processed.description;
           }
