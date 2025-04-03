@@ -5,29 +5,51 @@ interface ProcessedThought {
   description: string;
 }
 
-export async function processThought(thought: string): Promise<ProcessedThought> {
-  if (!thought || !thought.trim()) {
-    throw new Error("Empty thought provided");
+function cleanInput(thought: string): string {
+  return thought.trim();
+}
+
+function validateInput(thought: string): void {
+  if (!thought) {
+    throw new Error("Blink empty");
   }
+  if (thought.length > 1000) {
+    throw new Error("Thought too long");
+  }
+}
 
+export async function processThought(thought: string): Promise<ProcessedThought> {
   try {
+    const cleanedThought = cleanInput(thought);
+    validateInput(cleanedThought);
+
     // First, analyze the thought to create a concise title
-    const titlePrompt = `You are a thought analysis assistant. Your task is to create a concise, descriptive title (max 60 characters) that captures the essence of the thought.
+    const titlePrompt = `You are a thought analysis assistant. Create a concise title (max 60 characters) that captures the main action or topic.
 
-Rules for the title:
-1. Must be 60 characters or less
-2. Use sentence casing (except for proper nouns, abbreviations, etc.)
-3. Remove unnecessary words
-4. Focus on the main point
+Rules:
+1. Max 60 characters
+2. No trailing punctuation
+3. Focus on main action/topic
+4. No first-person perspective
+5. No articles (a, an, the) unless grammatically required
+6. For tasks, start with a verb
+7. For ideas/concepts, use noun phrases
 
-Thought: "${thought}"
+Examples:
+Input: "I need to buy groceries after work today"
+Title: "Buy groceries after work"
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
+Input: "Create a mobile app for water intake tracking"
+Title: "Build water intake tracking mobile app"
+
+Thought: "${cleanedThought}"
+
+Respond with ONLY the JSON object, no markdown or additional text:
 {"title": "Concise title here"}`;
 
     const titleResponse = await AI.ask(titlePrompt, {
       model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual analysis
+      creativity: "low"
     });
     
     let titleJson;
@@ -37,34 +59,71 @@ Respond with ONLY the JSON object, no markdown formatting or additional text. Ex
         throw new Error("Invalid title response format");
       }
     } catch (parseError) {
-      throw new Error("Failed to parse AI title response");
+      throw new Error("Failed to generate title");
     }
 
     // Then, create a summary
-    const summaryPrompt = `You are a thought summarization assistant. Your task is to create a clear summary of the thought.
+    const summaryPrompt = `You are a thought summarization assistant. Create a valuable description that adds context or details not captured in the title.
 
-Rules for the summary:
-1. Should capture the main idea and context
-2. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...")
+Rules:
+1. Max 200 characters
+2. Must end with a period
+3. For simple thoughts or self-explanatory titles, ALWAYS return an empty string ("")
+4. No first-person perspective
+5. For tasks: focus on context, timing, or dependencies
+6. For ideas: focus on key details or implications
+7. No redundant phrases like "This is about..." or "The task is to..."
 
-Thought: "${thought}"
+Examples of simple tasks that need empty descriptions:
+Input: "Call mom tomorrow"
+Title: "Call mom tomorrow"
+Description: ""
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"summary": "This is a summary of the main idea."}`;
+Examples of thoughts that need descriptions:
+Input: "Create a mobile app for water intake tracking that includes daily reminders, progress charts, and goal setting features."
+Title: "Build water intake tracking mobile app"
+Description: "Include daily reminders, progress charts, and goal setting features."
+
+Input: "Team meeting tomorrow at 2pm to discuss project updates with everyone"
+Title: "Team meeting tomorrow"
+Description: "Meeting scheduled for 2pm to discuss project updates."
+
+Thought: "${cleanedThought}"
+Title: "${titleJson.title}"
+
+IMPORTANT: Respond with ONLY a valid JSON object containing a "summary" field. The summary must be a string.
+Example valid responses:
+{"summary": ""}
+{"summary": "Include daily reminders and progress charts."}`;
 
     const summaryResponse = await AI.ask(summaryPrompt, {
       model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual summary
+      creativity: "low"
     });
     
     let summaryJson;
     try {
-      summaryJson = JSON.parse(summaryResponse.replace(/```json\n?|\n?```/g, '').trim());
-      if (!summaryJson.summary) {
-        throw new Error("Invalid summary response format");
+      // Clean the response to ensure it's valid JSON
+      const cleanedResponse = summaryResponse
+        .replace(/```json\n?|\n?```/g, '') // Remove markdown code blocks
+        .replace(/^\s+|\s+$/g, '') // Trim whitespace
+        .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width spaces
+      
+      summaryJson = JSON.parse(cleanedResponse);
+      
+      // Validate the response structure
+      if (typeof summaryJson !== 'object' || summaryJson === null) {
+        throw new Error("Invalid JSON structure");
+      }
+      if (!('summary' in summaryJson)) {
+        throw new Error("Missing summary field");
+      }
+      if (typeof summaryJson.summary !== 'string') {
+        throw new Error("Summary must be a string");
       }
     } catch (parseError) {
-      throw new Error("Failed to parse AI summary response");
+      console.error('Summary parsing error:', parseError);
+      throw new Error("Failed to generate description");
     }
 
     return {
@@ -72,6 +131,9 @@ Respond with ONLY the JSON object, no markdown formatting or additional text. Ex
       description: summaryJson.summary
     };
   } catch (error) {
-    throw new Error(`Failed to process thought: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (error instanceof Error) {
+      throw new Error(`Add text to capture: ${error.message}`);
+    }
+    throw new Error("Add text to capture: Unknown error");
   }
 } 
