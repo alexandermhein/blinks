@@ -1,4 +1,4 @@
-import { AI, environment, BrowserExtension, showHUD } from "@raycast/api";
+import { AI, environment, BrowserExtension, showHUD, popToRoot } from "@raycast/api";
 import { saveBlink } from "./utils/storage";
 import { processThought } from "./utils/ai-thoughts";
 import { processReminder } from "./utils/ai-reminders";
@@ -155,6 +155,7 @@ export default async function Command(props: CommandProps) {
       await saveBlink(blink);
       await loadingToast.hide();
       await showHUD(`${formatBlinkType(type)} captured  ✅`);
+      await popToRoot({ clearSearchBar: true });
     } catch (error) {
       await loadingToast.hide();
       await showErrorToast(

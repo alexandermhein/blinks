@@ -11,85 +11,88 @@ This document outlines test cases for the quote processing logic in `src/utils/a
 4. Add commentary about the results
 5. Update the status field: s (success) or f (failed)
 
-### Test Results Template
-```markdown
-### Test Case X: [Name]
-- **Input**: [Quote]
-- **Expected Output**: [Expected behavior]
-- **Commentary**: [Your observations about the results]
-- **Status**: [s/f]
-```
-
 ## Test Cases for Manual Testing
 
-### Test Case 1: Simple Famous Quote
-- **Input**: Be the change you wish to see in the world
-- **Expected Output**: Should identify as Mahatma Gandhi with description
+### Test Case 1: Famous Quote
+- **Input**: "The only way to do great work is to love what you do." - Steve Jobs
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 2: Quote with Extra Spaces
-- **Input**: Be    the    change    you    wish    to    see    in    the    world
-- **Expected Output**: Should normalize spaces and identify as Mahatma Gandhi
+### Test Case 2: Book Quote
+- **Input**: "It is our choices, Harry, that show what we truly are, far more than our abilities." - Albus Dumbledore, Harry Potter and the Chamber of Secrets
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 3: Quote with Attribution
-- **Input**: Be the change you wish to see in the world - Gandhi
-- **Expected Output**: Should use full name "Mahatma Gandhi" with description
-- **Commentary**: Author's name shown as "Gandhi" instead of full name 
-- **Status**: [s]
-
-### Test Case 4: Different Attribution
-- **Input**: Be the change you wish to see in the world - John Smith
-- **Expected Output**: Should use "John Smith" without description
+### Test Case 3: Movie Quote
+- **Input**: "Life is like a box of chocolates. You never know what you're gonna get." - Forrest Gump
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 5: Various Attribution Formats
-- **Input**: Be the change you wish to see in the world by Gandhi
-- **Expected Output**: Should identify as Mahatma Gandhi with description
+### Test Case 4: Long Quote
+- **Input**: "The best way to predict the future is to create it. We are not here to merely survive, but to thrive. And to do so with some passion, some compassion, some humor, and some style." - Maya Angelou
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 6: Common Abbreviation
-- **Input**: I have a dream - MLK
-- **Expected Output**: Should expand to "Martin Luther King Jr." with description
-- **Commentary**: Shows "MLK" as author and no description
-- **Status**: [f]
-
-### Test Case 7: Modern Figure
-- **Input**: The only way to do great work is to love what you do - Steve Jobs
-- **Expected Output**: Should identify as Steve Jobs with description
+### Test Case 5: Quote with Context
+- **Input**: "I have a dream that one day this nation will rise up and live out the true meaning of its creed: 'We hold these truths to be self-evident, that all men are created equal.'" - Martin Luther King Jr., I Have a Dream speech
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 8: Unknown Quote
-- **Input**: This is a completely original quote that no one has ever said before
-- **Expected Output**: Should return only formatted quote without author or description
+### Test Case 6: Technical Quote
+- **Input**: "Any fool can write code that a computer can understand. Good programmers write code that humans can understand." - Martin Fowler
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
 
-### Test Case 9: Multiple Authors
-- **Input**: The quick brown fox jumps over the lazy dog - John and Jane Doe
-- **Expected Output**: Should preserve multiple authors without description
+### Test Case 7: Quote with Multiple Authors
+- **Input**: "The only thing we have to fear is fear itself." - Franklin D. Roosevelt, First Inaugural Address
+- **Actual Title**: 
+- **Actual Description**: 
 - **Commentary**: 
-- **Status**: [s]
+- **Status**: 
+
+### Test Case 8: Empty or Whitespace
+- **Input**: "   "
+- **Actual Title**: 
+- **Actual Description**: 
+- **Commentary**: 
+- **Status**: 
+
+### Test Case 9: Quote without Attribution
+- **Input**: "Be the change you wish to see in the world."
+- **Actual Title**: 
+- **Actual Description**: 
+- **Commentary**: 
+- **Status**: 
 
 ## Implementation Notes
 
-1. All quotes should be properly formatted:
-   - Trimmed of whitespace
-   - Multiple spaces normalized to single space
-   - First letter capitalized
-   - Surrounding quotes removed
+1. Title formatting rules:
+   - Maximum 60 characters
+   - Sentence case (first letter capitalized)
+   - No trailing punctuation
+   - Focus on the main theme or key phrase
 
-2. Author names should be:
-   - Preserved in their original case
-   - Used in their most complete form when AI identifies them
-   - Used as provided by user when AI identification differs
+2. Description requirements:
+   - Single sentence
+   - Maximum 200 characters
+   - Clear, direct language
+   - Must end with a period
+   - Include attribution if available
 
-3. Descriptions should only be included when:
-   - AI can confidently identify the author
-   - User attribution matches AI identification
-   - The quote is a known quote with historical context 
+3. Error handling:
+   - Empty inputs should be rejected
+   - Missing attribution should be handled gracefully
+   - Long quotes should be properly truncated
+   - Special characters should be preserved 
