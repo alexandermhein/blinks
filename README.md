@@ -37,6 +37,3 @@ Contributions welcome! Please check the issues page or submit a pull request.
 ## License
 
 MIT
-
----
-Built with ❤️ for Raycast
