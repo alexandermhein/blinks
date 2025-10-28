@@ -37,3 +37,36 @@ Contributions welcome! Please check the issues page or submit a pull request.
 ## License
 
 MIT
+
+## Notion Integration
+
+This extension stores Blinks in a single Notion database with full create, read, update, and delete support.
+
+### 1) Create a Notion Integration
+
+- In Notion, go to Settings → Integrations → Develop your own integrations
+- Create a new Internal Integration and copy the token (`secret_...`)
+
+### 2) Create a Database
+
+Create a database (Table view recommended) and add these properties:
+
+- Title (title)
+- Type (select) with options: thought, reminder, bookmark, quote
+- Description (rich text)
+- Source (url)
+- Author (rich text)
+- Reminder Date (date)
+- Is Completed (checkbox)
+- Completed At (date)
+
+Share the database with your integration (Share → Invite → Select your integration).
+
+### 3) Configure Raycast Preferences
+
+In Raycast → Extensions → Blinks, set:
+
+- Notion API Token: Your `secret_...` token
+- Notion Database ID: The database ID (from the URL)
+
+Now all Blinks will be stored in this Notion database.
