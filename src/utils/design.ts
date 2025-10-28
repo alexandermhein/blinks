@@ -55,4 +55,4 @@ export function getBlinkColor(type: BlinkType) {
 // Type guard
 export function isValidBlinkType(type: string): type is BlinkType {
   return type in blinkTypes;
-} 
+}

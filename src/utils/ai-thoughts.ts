@@ -1,9 +1,6 @@
 import { AI } from "@raycast/api";
-
-interface ProcessedThought {
-  title: string;
-  description: string;
-}
+import { askWithRetry, safeJSONParse } from "./ai-helper";
+import type { AIThoughtResponse, ProcessedThought } from "./ai-schemas";
 
 export async function processThought(thought: string): Promise<ProcessedThought> {
   if (!thought || !thought.trim()) {
@@ -11,68 +8,59 @@ export async function processThought(thought: string): Promise<ProcessedThought>
   }
 
   try {
-    // First, analyze the thought to create a concise title
-    const titlePrompt = `You are a thought analysis assistant. Your task is to create a concise, descriptive title (max 60 characters) that captures the essence of the thought.
+    const prompt = `You are a thought processing assistant. Analyze this thought and create both a concise title and detailed description.
 
-Rules for the title:
-1. Must be 60 characters or less
-2. Use sentence casing (except for proper nouns, abbreviations, etc.)
-3. Remove unnecessary words
-4. Focus on the main point
+RULES:
+- Title: Max 60 characters, focus on main point, use sentence case (capitalize first word only)
+- Description: Expand on the main idea and provide context, use direct language, avoid third-person references
 
-Thought: "${thought}"
+EXAMPLES:
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"title": "Concise title here"}`;
+Input: "I need to remember to follow up with the team about the project deadline"
+Output: {"title": "Follow up with team about project deadline", "description": "Need to discuss project deadlines and coordinate with the team to ensure we meet our goals."}
 
-    const titleResponse = await AI.ask(titlePrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual analysis
-    });
-    
-    let titleJson;
-    try {
-      titleJson = JSON.parse(titleResponse.replace(/```json\n?|\n?```/g, '').trim());
-      if (!titleJson.title) {
-        throw new Error("Invalid title response format");
-      }
-    } catch (parseError) {
-      throw new Error("Failed to parse AI title response");
-    }
+Input: "Should consider using a different approach for the UI"
+Output: {"title": "Reconsider UI approach", "description": "Evaluating alternative UI implementations that may improve user experience or development efficiency."}
 
-    // Then, create a summary
-    const summaryPrompt = `You are a thought summarization assistant. Your task is to create a clear summary of the thought.
-
-Rules for the summary:
-1. Should capture the main idea and context
-2. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...").
-3. Use sentence casing (except for proper nouns, abbreviations, etc.)
+Input: "The new feature request has some interesting implications"
+Output: {"title": "New feature request implications", "description": "Analyzing the potential impact and interesting aspects of the new feature request."}
 
 Thought: "${thought}"
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"summary": "This is a summary of the main idea."}`;
+Respond with ONLY valid JSON (no markdown formatting, no extra text):
+{"title": "...", "description": "..."}`;
 
-    const summaryResponse = await AI.ask(summaryPrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual summary
-    });
-    
-    let summaryJson;
+    let response: string;
     try {
-      summaryJson = JSON.parse(summaryResponse.replace(/```json\n?|\n?```/g, '').trim());
-      if (!summaryJson.summary) {
-        throw new Error("Invalid summary response format");
-      }
-    } catch (parseError) {
-      throw new Error("Failed to parse AI summary response");
+      response = await askWithRetry(prompt, {
+        model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
+        creativity: "low",
+      });
+    } catch {
+      // Fallback to 2.0 Flash if 2.5 isn't available
+      response = await askWithRetry(prompt, {
+        model: AI.Model["Google_Gemini_2.0_Flash"],
+        creativity: "low",
+      });
     }
+
+    // Parse with validation
+    const parseResult = safeJSONParse<AIThoughtResponse>(response, ["title", "description"], {
+      title: thought.trim().substring(0, 60),
+      description: thought.trim(),
+    });
+
+    if (!parseResult.success || !parseResult.data) {
+      throw new Error("Failed to parse AI response");
+    }
+
+    const result = parseResult.data;
 
     return {
-      title: titleJson.title,
-      description: summaryJson.summary
+      title: result.title.substring(0, 60), // Hard cap at 60 characters
+      description: result.description,
     };
   } catch (error) {
-    throw new Error(`Failed to process thought: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to process thought: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
-} 
+}

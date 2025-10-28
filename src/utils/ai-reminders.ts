@@ -1,9 +1,6 @@
 import { AI } from "@raycast/api";
-
-interface ProcessedReminder {
-  title: string;
-  description: string;
-}
+import { askWithRetry, safeJSONParse } from "./ai-helper";
+import type { AIReminderResponse, ProcessedReminder } from "./ai-schemas";
 
 export async function processReminder(reminder: string): Promise<ProcessedReminder> {
   if (!reminder || !reminder.trim()) {
@@ -15,98 +12,69 @@ export async function processReminder(reminder: string): Promise<ProcessedRemind
   if (!trimmedReminder.includes(" ")) {
     return {
       title: trimmedReminder.charAt(0).toUpperCase() + trimmedReminder.slice(1),
-      description: ""
+      description: "",
     };
   }
 
   try {
-    // First, analyze the reminder to create a concise action-oriented title
-    const titlePrompt = `You are a reminder analysis assistant. Your task is to create a concise, action-oriented title that captures the core action of the reminder.
+    const prompt = `You are a reminder processing assistant. Extract the action and context from this reminder.
 
-Rules for the title:
-1. Must be 40 characters or less
-2. Start with a verb (e.g. "Call", "Submit", "Buy", "Review")
-3. Use sentence casing (except for proper nouns, abbreviations, etc.)
-4. Remove unnecessary words
-5. Focus ONLY on the core action - exclude timing, location, and other contextual details
-6. Keep it simple and direct
+RULES:
+- Title: Action-oriented, max 40 chars, start with verb, use sentence case
+- Description: Context only (timing, location, conditions), NOT the action itself
 
-Examples:
+EXAMPLES:
+
 Input: "Remind me to pick up dry cleaning when I get to downtown"
-Title: "Pick up dry cleaning"
+Output: {"title": "Pick up dry cleaning", "description": "When arriving downtown"}
 
 Input: "Need to call mom tomorrow at 2pm to discuss the family reunion"
-Title: "Call mom"
+Output: {"title": "Call mom", "description": "Discuss family reunion tomorrow at 2pm"}
 
 Input: "Remember to buy groceries"
-Title: "Buy groceries"
+Output: {"title": "Buy groceries", "description": ""}
+
+Input: "Send the report to the client by Friday"
+Output: {"title": "Send report to client", "description": "By Friday"}
 
 Reminder: "${reminder}"
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"title": "Action-oriented title here"}`;
+Respond with ONLY valid JSON (no markdown formatting, no extra text):
+{"title": "...", "description": "..."}`;
 
-    const titleResponse = await AI.ask(titlePrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual analysis
-    });
-    
-    let titleJson;
+    let response: string;
     try {
-      titleJson = JSON.parse(titleResponse.replace(/```json\n?|\n?```/g, '').trim());
-      if (!titleJson.title) {
-        throw new Error("Invalid title response format");
-      }
-    } catch (parseError) {
-      throw new Error("Failed to parse AI title response");
+      response = await askWithRetry(prompt, {
+        model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
+        creativity: "low",
+      });
+    } catch {
+      // Fallback to 2.0 Flash if 2.5 isn't available
+      response = await askWithRetry(prompt, {
+        model: AI.Model["Google_Gemini_2.0_Flash"],
+        creativity: "low",
+      });
     }
 
-    // Then, create a detailed description
-    const descriptionPrompt = `You are a reminder summarization assistant. Your task is to create a clear description that focuses on the contextual details of the reminder.
-
-Rules for the description:
-1. Focus ONLY on contextual details like timing, location, conditions, or requirements
-2. Do NOT repeat the core action from the title
-3. Use clear, direct language. Don't mention the user in third person (e.g. "The user needs to ...")
-4. Use sentence casing (except for proper nouns, abbreviations, etc.)
-5. Keep it concise but informative
-6. If there are no contextual details, return an empty string
-
-Examples:
-Input: "Remind me to pick up dry cleaning when I get to downtown"
-Description: "When arriving in downtown"
-
-Input: "Need to call mom tomorrow at 2pm to discuss the family reunion"
-Description: "Discuss family reunion tomorrow at 2pm"
-
-Input: "Remember to buy groceries"
-Description: ""
-
-Reminder: "${reminder}"
-
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"description": "Contextual details here"}`;
-
-    const descriptionResponse = await AI.ask(descriptionPrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual summary
+    const parseResult = safeJSONParse<AIReminderResponse>(response, ["title", "description"], {
+      title: trimmedReminder,
+      description: "",
     });
-    
-    let descriptionJson;
-    try {
-      descriptionJson = JSON.parse(descriptionResponse.replace(/```json\n?|\n?```/g, '').trim());
-      if (!descriptionJson.description) {
-        throw new Error("Invalid description response format");
-      }
-    } catch (parseError) {
-      throw new Error("Failed to parse AI description response");
+
+    // Validate the result
+    if (!parseResult.success || !parseResult.data) {
+      throw new Error("Failed to parse AI response");
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(parseResult.data, "description")) {
+      throw new Error("Invalid description field");
     }
 
     return {
-      title: titleJson.title,
-      description: descriptionJson.description
+      title: parseResult.data.title,
+      description: parseResult.data.description,
     };
   } catch (error) {
-    throw new Error(`Failed to process reminder: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to process reminder: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
-} 
+}

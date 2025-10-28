@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Form, ActionPanel, Action, showToast, Toast, environment, useNavigation } from "@raycast/api";
+import React from "react";
+import { Form, ActionPanel, Action, showToast, Toast, useNavigation } from "@raycast/api";
 import { useForm, FormValidation } from "@raycast/utils";
-import { BrowserExtension } from "@raycast/api";
 import { updateBlink } from "../utils/storage";
 import { BlinkType, isValidBlinkType } from "../utils/design";
 import { Blink } from "../types/blinks";
@@ -60,21 +59,23 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
         ...(values.description ? { description: values.description } : {}),
       };
 
-      updateBlink(updatedBlink).then(() => {
-        showToast({
-          style: Toast.Style.Success,
-          title: "Blink updated",
-          message: `"${values.title}" saved`,
+      updateBlink(updatedBlink)
+        .then(() => {
+          showToast({
+            style: Toast.Style.Success,
+            title: "Blink updated",
+            message: `"${values.title}" saved`,
+          });
+          onSuccess?.();
+          pop();
+        })
+        .catch((error) => {
+          showToast({
+            style: Toast.Style.Failure,
+            title: "Error updating Blink",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+          });
         });
-        onSuccess?.();
-        pop();
-      }).catch((error) => {
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Error updating Blink",
-          message: error instanceof Error ? error.message : "Unknown error occurred",
-        });
-      });
     },
     validation: {
       title: FormValidation.Required,
@@ -94,20 +95,15 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm 
-            title="Update Blink" 
+          <Action.SubmitForm
+            title="Update Blink"
             onSubmit={handleSubmit}
             shortcut={{ modifiers: ["cmd"], key: "return" }}
           />
         </ActionPanel>
       }
     >
-      <Form.Dropdown
-        id="type"
-        title="Type"
-        value={itemProps.type.value}
-        onChange={handleTypeChange}
-      >
+      <Form.Dropdown id="type" title="Type" value={itemProps.type.value} onChange={handleTypeChange}>
         <Form.Dropdown.Item value="thought" title="Thought" />
         <Form.Dropdown.Item value="reminder" title="Reminder" />
         <Form.Dropdown.Item value="bookmark" title="Bookmark" />
@@ -123,17 +119,9 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
         />
       )}
       {itemProps.type.value === "reminder" ? (
-        <Form.TextField
-          title="Blink"
-          placeholder="Capture a Blink ..."
-          {...itemProps.title}
-        />
+        <Form.TextField title="Blink" placeholder="Capture a Blink ..." {...itemProps.title} />
       ) : (
-        <Form.TextArea
-          title="Blink"
-          placeholder="Capture a Blink ..."
-          {...itemProps.title}
-        />
+        <Form.TextArea title="Blink" placeholder="Capture a Blink ..." {...itemProps.title} />
       )}
       {itemProps.type.value === "reminder" && (
         <Form.TextArea
@@ -144,11 +132,7 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
       )}
       {itemProps.type.value === "quote" && (
         <>
-          <Form.TextField
-            title="Author"
-            placeholder="Enter the author's name"
-            {...itemProps.author}
-          />
+          <Form.TextField title="Author" placeholder="Enter the author's name" {...itemProps.author} />
           <Form.TextArea
             title="Description"
             placeholder="Add context or notes about the quote"
@@ -156,13 +140,7 @@ export default function EditBlinkForm({ blink, onSuccess }: EditBlinkFormProps) 
           />
         </>
       )}
-      {blink.source && (
-        <Form.TextField
-          title="Source"
-          placeholder="https://example.com"
-          {...itemProps.source}
-        />
-      )}
+      {blink.source && <Form.TextField title="Source" placeholder="https://example.com" {...itemProps.source} />}
     </Form>
   );
-} 
+}

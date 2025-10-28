@@ -1,97 +1,73 @@
 import { AI } from "@raycast/api";
-
-interface ProcessedQuote {
-  formattedQuote: string;
-  author?: string;
-  description?: string;
-}
+import { askWithRetry, safeJSONParse } from "./ai-helper";
+import type { AIQuoteResponse, ProcessedQuote } from "./ai-schemas";
 
 export async function processQuote(quote: string): Promise<ProcessedQuote> {
+  if (!quote || !quote.trim()) {
+    return { formattedQuote: quote.trim() };
+  }
+
   try {
-    // First, try to identify the author of the quote
-    const identifyPrompt = `You are a quote analysis assistant. Analyze this quote and provide a JSON response with exactly these fields:
-- identifiedAuthor: The author of this quote (if you are confident about the attribution), or null if you cannot confidently identify the author
-- description: A brief historical context or significance (2-3 sentences) ONLY if you can confidently identify the author
+    // Combined prompt - does identification, cleaning, and formatting in one pass
+    const prompt = `You are a quote processing assistant. Analyze this quote and extract:
+1. The cleaned quote text (remove attribution markers like "—", "by", "-")
+2. The author name (if explicitly mentioned or if you can identify it with high confidence)
+3. A brief 1-2 sentence context (only if author is identified and known)
 
 Quote: "${quote}"
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"identifiedAuthor": "Author Name", "description": "Historical context here"}`;
+Rules:
+- cleanedQuote: Remove all attribution markers and extra quotes, properly formatted
+- author: Return the author name if explicitly mentioned in the quote or if you can confidently identify it, otherwise null
+- context: Brief 1-2 sentence historical context or significance ONLY if author is confidently identified, otherwise null
 
-    const identifyResponse = await AI.ask(identifyPrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "low" // Lower creativity for factual identification
+Example:
+Input: "Be yourself; everyone else is already taken." — Oscar Wilde
+Output: {"cleanedQuote": "Be yourself; everyone else is already taken.", "author": "Oscar Wilde", "context": "A witty observation about authenticity and individuality."}
+
+Respond with ONLY valid JSON (no markdown formatting, no extra text):`;
+
+    let response: string;
+    try {
+      response = await askWithRetry(prompt, {
+        model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
+        creativity: "low",
+      });
+    } catch {
+      // Fallback to 2.0 Flash if 2.5 isn't available
+      response = await askWithRetry(prompt, {
+        model: AI.Model["Google_Gemini_2.0_Flash"],
+        creativity: "low",
+      });
+    }
+
+    // Safe JSON parsing with fallback
+    const parseResult = safeJSONParse<AIQuoteResponse>(response, ["cleanedQuote", "author", "context"], {
+      cleanedQuote: quote.trim(),
+      author: null,
+      context: null,
     });
-    const identifyJson = JSON.parse(identifyResponse.replace(/```json\n?|\n?```/g, '').trim());
 
-    // Then, check for user attribution in the quote
-    const cleanPrompt = `You are a quote cleaning assistant. Analyze this quote and provide a JSON response with exactly these fields:
-- cleanedQuote: The quote with any attribution removed (e.g. "by Author", "— Author", "- Author")
-- attributedAuthor: The author's name if found in the attribution, or null if no attribution found
+    if (!parseResult.success || !parseResult.data) {
+      return { formattedQuote: quote.trim() };
+    }
 
-Quote: "${quote}"
+    const result = parseResult.data;
 
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"cleanedQuote": "The cleaned quote without attribution", "attributedAuthor": "Author Name"}`;
-
-    const cleanResponse = await AI.ask(cleanPrompt, {
-      model: AI.Model["Google_Gemini_2.0_Flash"],
-      creativity: "none" // No creativity needed for cleaning
-    });
-    const cleanJson = JSON.parse(cleanResponse.replace(/```json\n?|\n?```/g, '').trim());
-    
-    // Format the cleaned quote
-    const formattedQuote = cleanJson.cleanedQuote
+    // Post-process: format the quote properly
+    const formattedQuote = result.cleanedQuote
       .trim()
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/^\s*["']|["']\s*$/g, '') // Remove surrounding quotes
+      .replace(/\s+/g, " ") // Replace multiple spaces with single space
+      .replace(/^\s*["']|["']\s*$/g, "") // Remove surrounding quotes
       .replace(/^[a-z]/, (letter: string) => letter.toUpperCase()); // Capitalize first letter
 
-    // Handle the different cases based on user attribution and AI identification
-    if (cleanJson.attributedAuthor) {
-      // User has attributed an author - check if it matches the identified author
-      const comparePrompt = `You are an author name comparison assistant. Compare these two names and determine if they refer to the same person.
-Provide a JSON response with exactly this field:
-- isSamePerson: true if the names refer to the same person (e.g. "Mahatma Gandhi" and "Gandhi" are the same person), false otherwise
-
-Name 1: "${cleanJson.attributedAuthor}"
-Name 2: "${identifyJson.identifiedAuthor || ''}"
-
-Respond with ONLY the JSON object, no markdown formatting or additional text. Example format:
-{"isSamePerson": true}`;
-
-      const compareResponse = await AI.ask(comparePrompt, {
-        model: AI.Model["Google_Gemini_2.0_Flash"],
-        creativity: "none" // No creativity needed for name comparison
-      });
-      const compareJson = JSON.parse(compareResponse.replace(/```json\n?|\n?```/g, '').trim());
-
-      if (compareJson.isSamePerson) {
-        // Names refer to the same person - use AI-identified name and include context
-        return {
-          formattedQuote,
-          author: identifyJson.identifiedAuthor,
-          description: identifyJson.description || undefined,
-        };
-      } else {
-        // Names don't match - use user's attribution without context
-        return {
-          formattedQuote,
-          author: cleanJson.attributedAuthor,
-        };
-      }
-    } else {
-      // No user attribution - use AI identification if available
-      return {
-        formattedQuote,
-        author: identifyJson.identifiedAuthor || undefined,
-        description: identifyJson.identifiedAuthor ? (identifyJson.description || undefined) : undefined,
-      };
-    }
-  } catch (error) {
-    console.error('Error processing quote:', error);
     return {
-      formattedQuote: quote.trim(),
+      formattedQuote,
+      author: result.author || undefined,
+      description: result.context || undefined,
     };
+  } catch (error) {
+    console.error("Error processing quote:", error);
+    return { formattedQuote: quote.trim() };
   }
-} 
+}

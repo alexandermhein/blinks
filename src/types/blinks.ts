@@ -1,4 +1,4 @@
-import { BlinkType } from "../utils/design";
+import type { BlinkType } from "../utils/design";
 
 export interface BlinkItemProps {
   blink: Blink;
@@ -24,4 +24,5 @@ export interface Blink {
   author?: string;
   reminderDate?: Date;
   isCompleted?: boolean;
-} 
+  completedAt?: Date;
+}

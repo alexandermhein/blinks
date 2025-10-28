@@ -28,34 +28,20 @@ ${blink.description ? blink.description : ""}`;
           </Detail.Metadata.TagList>
           {blink.type === "reminder" && blink.reminderDate && (
             <Detail.Metadata.TagList title="Reminder">
-              <Detail.Metadata.TagList.Item 
-                text={formatDate(blink.reminderDate)} 
-                color={getBlinkColor(blink.type)}
-              />
+              <Detail.Metadata.TagList.Item text={formatDate(blink.reminderDate)} color={getBlinkColor(blink.type)} />
             </Detail.Metadata.TagList>
           )}
           {blink.source && (
-            <Detail.Metadata.Link 
-              title="Source" 
-              text={getHostname(blink.source)} 
-              target={blink.source} 
-            />
+            <Detail.Metadata.Link title="Source" text={getHostname(blink.source)} target={blink.source} />
           )}
-          {blink.author && (
-            <Detail.Metadata.Label title="Author" text={blink.author} />
-          )}
+          {blink.author && <Detail.Metadata.Label title="Author" text={blink.author} />}
           <Detail.Metadata.Label title="Created" text={formatDate(blink.createdOn)} />
         </Detail.Metadata>
       }
       actions={
         <ActionPanel>
           <Action.CopyToClipboard content={blink.title} />
-          {blink.source && (
-            <Action.OpenInBrowser 
-              url={blink.source} 
-              shortcut={{ modifiers: ["cmd"], key: "l" }}
-            />
-          )}
+          {blink.source && <Action.OpenInBrowser url={blink.source} shortcut={{ modifiers: ["cmd"], key: "l" }} />}
           <Action
             title="Delete Blink"
             icon={Icon.Trash}
@@ -74,4 +60,4 @@ ${blink.description ? blink.description : ""}`;
 
 BlinkDetail.displayName = "BlinkDetail";
 
-export default BlinkDetail; 
+export default BlinkDetail;

@@ -3,7 +3,8 @@ import { useForm, FormValidation } from "@raycast/utils";
 import { useEffect, useState, useMemo } from "react";
 import { BrowserExtension } from "@raycast/api";
 import { saveBlink } from "./utils/storage";
-import { BlinkType, isValidBlinkType } from "./utils/design";
+import { isValidBlinkType } from "./utils/design";
+import type { BlinkType } from "./utils/design";
 import { processQuote } from "./utils/ai-quotes";
 import { processThought } from "./utils/ai-thoughts";
 import { processReminder } from "./utils/ai-reminders";
@@ -20,21 +21,20 @@ interface BlinkValues {
 export default function Command() {
   const canAccessBrowser = useMemo(() => environment.canAccess(BrowserExtension), []);
   const [hasActiveTab, setHasActiveTab] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     async function checkActiveTab() {
       if (!canAccessBrowser) return;
-      
+
       try {
         const tabs = await BrowserExtension.getTabs();
-        const activeTab = tabs.find(tab => tab.active);
+        const activeTab = tabs.find((tab) => tab.active);
         setHasActiveTab(!!activeTab?.url);
-      } catch (error) {
+      } catch {
         setHasActiveTab(false);
       }
     }
-    
+
     checkActiveTab();
   }, [canAccessBrowser]);
 
@@ -53,13 +53,25 @@ export default function Command() {
         });
         return;
       }
+      if (values.type === "reminder" && !values.reminderDate) {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Missing reminder date",
+          message: "Please select a date for the reminder",
+        });
+        return;
+      }
 
       let processedTitle = values.title;
       let author: string | undefined;
       let description: string | undefined;
 
-      if (values.type === "quote" || values.type === "thought" || values.type === "reminder" || values.type === "bookmark") {
-        setIsProcessing(true);
+      if (
+        values.type === "quote" ||
+        values.type === "thought" ||
+        values.type === "reminder" ||
+        values.type === "bookmark"
+      ) {
         const loadingToast = await showToast({
           style: Toast.Style.Animated,
           title: "Processing Blink...",
@@ -92,10 +104,7 @@ export default function Command() {
             title: `Error processing ${values.type}`,
             message: error instanceof Error ? error.message : "Could not analyze with AI",
           });
-          setIsProcessing(false);
-          return;
-        } finally {
-          setIsProcessing(false);
+          // Continue to save original input even if AI fails
         }
       }
 
@@ -110,7 +119,7 @@ export default function Command() {
           ...(description ? { description } : {}),
           createdOn: new Date(),
         };
-        
+
         await saveBlink(blink);
         popToRoot();
         await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
@@ -138,13 +147,13 @@ export default function Command() {
       if (value === "bookmark" && canAccessBrowser) {
         try {
           const tabs = await BrowserExtension.getTabs();
-          const activeTab = tabs.find(tab => tab.active);
-          
+          const activeTab = tabs.find((tab) => tab.active);
+
           if (activeTab?.title && activeTab?.url) {
             setValue("title", activeTab.title);
             setValue("source", activeTab.url);
             setValue("useBrowserTab", true);
-            
+
             const url = new URL(activeTab.url);
             showToast({
               style: Toast.Style.Success,
@@ -158,7 +167,7 @@ export default function Command() {
               message: "Could not find an active browser tab",
             });
           }
-        } catch (error) {
+        } catch {
           showToast({
             style: Toast.Style.Failure,
             title: "Error",
@@ -179,19 +188,11 @@ export default function Command() {
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm 
-            title="Capture Blink" 
-            onSubmit={handleSubmit}
-          />
+          <Action.SubmitForm title="Capture Blink" onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
-      <Form.Dropdown
-        id="type"
-        title="Type"
-        value={itemProps.type.value}
-        onChange={handleTypeChange}
-      >
+      <Form.Dropdown id="type" title="Type" value={itemProps.type.value} onChange={handleTypeChange}>
         <Form.Dropdown.Item value="thought" title="Thought" />
         <Form.Dropdown.Item value="reminder" title="Reminder" />
         <Form.Dropdown.Item value="bookmark" title="Bookmark" />
@@ -206,11 +207,7 @@ export default function Command() {
           onChange={(date) => setValue("reminderDate", date || undefined)}
         />
       )}
-      <Form.TextArea
-        title="Blink"
-        placeholder="Capture ..."
-        {...itemProps.title}
-      />
+      <Form.TextArea title="Blink" placeholder="Capture ..." {...itemProps.title} />
       {canAccessBrowser && hasActiveTab && (
         <Form.Checkbox
           id="useBrowserTab"
@@ -221,8 +218,8 @@ export default function Command() {
             if (checked) {
               try {
                 const tabs = await BrowserExtension.getTabs();
-                const activeTab = tabs.find(tab => tab.active);
-                
+                const activeTab = tabs.find((tab) => tab.active);
+
                 if (activeTab?.url) {
                   setValue("source", activeTab.url);
                   const url = new URL(activeTab.url);
@@ -238,7 +235,7 @@ export default function Command() {
                     message: "Could not find an active browser tab",
                   });
                 }
-              } catch (error) {
+              } catch {
                 showToast({
                   style: Toast.Style.Failure,
                   title: "Error",

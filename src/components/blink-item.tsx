@@ -1,18 +1,10 @@
 import { ActionPanel, Action, Icon, List, showToast, Toast } from "@raycast/api";
 import { memo } from "react";
-import { BlinkItemProps } from "../types/blinks";
+import type { BlinkItemProps } from "../types/blinks";
 import { getBlinkIcon, getBlinkIconColor, getBlinkColor } from "../utils/design";
+import { formatDate } from "../utils/date";
 import BlinkDetail from "./blink-detail";
 import EditBlinkForm from "./edit-blink-form";
-
-const formatDate = (date: Date | string) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
 
 const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps) => {
   const handleToggle = async () => {
@@ -33,17 +25,8 @@ const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps
 
   const commonActions = (
     <>
-      <Action.Push
-        title="View Blink"
-        icon={Icon.Info}
-        target={<BlinkDetail blink={blink} onDelete={onDelete} />}
-      />
-      {blink.source && (
-        <Action.OpenInBrowser 
-          url={blink.source}
-          shortcut={{ modifiers: ["cmd"], key: "l" }}
-        />
-      )}
+      <Action.Push title="View Blink" icon={Icon.Info} target={<BlinkDetail blink={blink} onDelete={onDelete} />} />
+      {blink.source && <Action.OpenInBrowser url={blink.source} shortcut={{ modifiers: ["cmd"], key: "l" }} />}
       <Action.Push
         title="Edit Blink"
         icon={Icon.Pencil}
@@ -67,15 +50,17 @@ const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps
     return (
       <List.Item
         key={blink.id}
-        icon={{ 
+        icon={{
           source: blink.isCompleted ? Icon.Checkmark : Icon.Circle,
-          tintColor: getBlinkColor(blink.type)
+          tintColor: getBlinkColor(blink.type),
         }}
         title={blink.title}
         subtitle={blink.description}
         accessories={[
           ...(blink.source ? [{ icon: Icon.Link, tooltip: blink.source }] : []),
-          ...(blink.reminderDate ? [{ tag: { value: formatDate(blink.reminderDate), color: getBlinkColor(blink.type) } }] : []),
+          ...(blink.reminderDate
+            ? [{ tag: { value: formatDate(blink.reminderDate), color: getBlinkColor(blink.type) } }]
+            : []),
           { text: formatDate(blink.createdOn) },
         ]}
         actions={
@@ -83,7 +68,7 @@ const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps
             {commonActions}
             <Action
               icon={blink.isCompleted ? Icon.Undo : Icon.Checkmark}
-              title={blink.isCompleted ? "Reset reminder" : "Remove reminder"}
+              title={blink.isCompleted ? "Reset Reminder" : "Remove Reminder"}
               shortcut={{ modifiers: ["cmd"], key: "return" }}
               onAction={handleToggle}
             />
@@ -116,4 +101,4 @@ const BlinkItem = memo(({ blink, onDelete, onToggle, onRefresh }: BlinkItemProps
 
 BlinkItem.displayName = "BlinkItem";
 
-export default BlinkItem; 
+export default BlinkItem;

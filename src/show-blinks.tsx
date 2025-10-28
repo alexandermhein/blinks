@@ -1,36 +1,22 @@
-import { ActionPanel, Action, Icon, List, showToast, Toast, Detail } from "@raycast/api";
+import { Icon, List, showToast, Toast } from "@raycast/api";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Blink, getBlinks, deleteBlink, toggleBlinkCompletion, cleanupCompletedReminders } from "./utils/storage";
-import { getBlinkIcon, getBlinkTitle, getBlinkIconColor, getBlinkColor, BlinkType } from "./utils/design";
-import { SortOption } from "./types/blinks";
+import {
+  getBlinks,
+  deleteBlink,
+  toggleBlinkCompletion,
+  cleanupCompletedReminders,
+  shouldRunCleanup,
+  markCleanupRun,
+} from "./utils/storage";
+import { getBlinkTitle } from "./utils/design";
+import type { BlinkType } from "./utils/design";
+import type { Blink, SortOption } from "./types/blinks";
 import BlinkItem from "./components/blink-item";
-import EditBlinkForm from "./components/edit-blink-form";
-import BlinkDetail from "./components/blink-detail";
 
-// Format date to "MMM DD, YYYY" format
-const formatDate = (date: Date | string) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-};
+// Use shared date formatter
 
 // Define fixed category order
 const CATEGORY_ORDER: BlinkType[] = ["reminder", "thought", "bookmark", "quote"];
-
-interface BlinkItemProps {
-  blink: Blink;
-  onDelete: (id: string) => Promise<void>;
-  onToggle: (id: string) => Promise<void>;
-}
-
-interface BlinkDetailProps {
-  blink: Blink;
-  onDelete: (id: string) => Promise<void>;
-  onRefresh: () => Promise<void>;
-}
 
 export default function Command() {
   const [blinks, setBlinks] = useState<Blink[]>([]);
@@ -41,7 +27,10 @@ export default function Command() {
 
   const loadBlinks = useCallback(async () => {
     try {
-      await cleanupCompletedReminders();
+      if (await shouldRunCleanup()) {
+        await cleanupCompletedReminders();
+        await markCleanupRun();
+      }
       const storedBlinks = await getBlinks();
       setBlinks(storedBlinks);
     } catch (error) {
@@ -62,7 +51,7 @@ export default function Command() {
   const handleDelete = useCallback(async (id: string) => {
     try {
       await deleteBlink(id);
-      setBlinks(prevBlinks => prevBlinks.filter(blink => blink.id !== id));
+      setBlinks((prevBlinks) => prevBlinks.filter((blink) => blink.id !== id));
       showToast({
         style: Toast.Style.Success,
         title: "Blink deleted",
@@ -77,21 +66,15 @@ export default function Command() {
   }, []);
 
   const handleToggle = useCallback(async (id: string) => {
-    try {
-      await toggleBlinkCompletion(id);
-      setBlinks(prevBlinks => prevBlinks.map(blink => 
-        blink.id === id ? { ...blink, isCompleted: !blink.isCompleted } : blink
-      ));
-    } catch (error) {
-      throw error;
-    }
+    await toggleBlinkCompletion(id);
+    setBlinks((prevBlinks) =>
+      prevBlinks.map((blink) => (blink.id === id ? { ...blink, isCompleted: !blink.isCompleted } : blink)),
+    );
   }, []);
 
   // Optimized sorting and filtering using useMemo
   const { sortedAndFilteredBlinks, groupedBlinks } = useMemo(() => {
-    const filtered = blinks.filter(blink => 
-      blink.title.toLowerCase().includes(searchText.toLowerCase())
-    );
+    const filtered = blinks.filter((blink) => blink.title.toLowerCase().includes(searchText.toLowerCase()));
 
     const sorted = [...filtered].sort((a, b) => {
       // Special handling for reminders - sort by reminder date
@@ -100,7 +83,7 @@ export default function Command() {
         const dateB = new Date(b.reminderDate || "");
         return dateA.getTime() - dateB.getTime();
       }
-      
+
       // For non-reminders or mixed types, use the selected sort option
       if (sortBy === "newest") {
         return new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime();
@@ -108,26 +91,41 @@ export default function Command() {
       return a.title.localeCompare(b.title);
     });
 
-    const grouped = sorted.reduce((acc, blink) => {
-      if (!acc[blink.type]) {
-        acc[blink.type] = [];
+    const grouped = sorted.reduce(
+      (acc, blink) => {
+        if (!acc[blink.type]) {
+          acc[blink.type] = [];
+        }
+        acc[blink.type].push(blink);
+        return acc;
+      },
+      {} as Record<string, Blink[]>,
+    );
+
+    // Ensure per-category sort is applied when title sorting selected
+    if (sortBy === "title") {
+      for (const type of Object.keys(grouped)) {
+        grouped[type].sort((a: Blink, b: Blink) => a.title.localeCompare(b.title));
       }
-      acc[blink.type].push(blink);
-      return acc;
-    }, {} as Record<string, Blink[]>);
+    }
 
     return { sortedAndFilteredBlinks: sorted, groupedBlinks: grouped };
   }, [blinks, searchText, sortBy]);
 
-  // Sort items within each category when title sorting is selected
-  if (sortBy === "title") {
-    Object.keys(groupedBlinks).forEach(type => {
-      groupedBlinks[type].sort((a, b) => a.title.localeCompare(b.title));
-    });
+  if (!isLoading && blinks.length === 0) {
+    return (
+      <List>
+        <List.EmptyView
+          icon={Icon.BlankDocument}
+          title="No Blinks Yet"
+          description="Capture your first Blink to get started!"
+        />
+      </List>
+    );
   }
 
   return (
-    <List 
+    <List
       isLoading={isLoading}
       searchBarPlaceholder="Search Blinks..."
       onSearchTextChange={setSearchText}
@@ -144,20 +142,12 @@ export default function Command() {
           }}
         >
           <List.Dropdown.Section title="Sort by">
-            <List.Dropdown.Item 
-              title="Sort by date" 
-              value="newest" 
-              icon={Icon.Calendar}
-            />
-            <List.Dropdown.Item 
-              title="Sort by title" 
-              value="title" 
-              icon={Icon.Text}
-            />
+            <List.Dropdown.Item title="Sort by date" value="newest" icon={Icon.Calendar} />
+            <List.Dropdown.Item title="Sort by title" value="title" icon={Icon.Text} />
           </List.Dropdown.Section>
           <List.Dropdown.Section title="List settings">
-            <List.Dropdown.Item 
-              title={showSections ? "Hide sections" : "Show sections"} 
+            <List.Dropdown.Item
+              title={showSections ? "Hide sections" : "Show sections"}
               value="toggle-sections"
               icon={showSections ? Icon.EyeSlash : Icon.Eye}
             />
@@ -165,35 +155,33 @@ export default function Command() {
         </List.Dropdown>
       }
     >
-      {showSections ? (
-        CATEGORY_ORDER.map((type) => {
-          const typeBlinks = groupedBlinks[type] || [];
-          if (typeBlinks.length === 0) return null;
-          return (
-            <List.Section key={type} title={getBlinkTitle(type)}>
-              {typeBlinks.map(blink => (
-                <BlinkItem 
-                  key={blink.id} 
-                  blink={blink} 
-                  onDelete={handleDelete}
-                  onToggle={handleToggle}
-                  onRefresh={loadBlinks}
-                />
-              ))}
-            </List.Section>
-          );
-        })
-      ) : (
-        sortedAndFilteredBlinks.map(blink => (
-          <BlinkItem 
-            key={blink.id} 
-            blink={blink} 
-            onDelete={handleDelete}
-            onToggle={handleToggle}
-            onRefresh={loadBlinks}
-          />
-        ))
-      )}
+      {showSections
+        ? CATEGORY_ORDER.map((type) => {
+            const typeBlinks = groupedBlinks[type] || [];
+            if (typeBlinks.length === 0) return null;
+            return (
+              <List.Section key={type} title={getBlinkTitle(type)}>
+                {typeBlinks.map((blink: Blink) => (
+                  <BlinkItem
+                    key={blink.id}
+                    blink={blink}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    onRefresh={loadBlinks}
+                  />
+                ))}
+              </List.Section>
+            );
+          })
+        : sortedAndFilteredBlinks.map((blink: Blink) => (
+            <BlinkItem
+              key={blink.id}
+              blink={blink}
+              onDelete={handleDelete}
+              onToggle={handleToggle}
+              onRefresh={loadBlinks}
+            />
+          ))}
     </List>
   );
 }
