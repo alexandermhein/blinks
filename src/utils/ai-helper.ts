@@ -1,4 +1,4 @@
-import { AI } from "@raycast/api";
+import { AI, environment } from "@raycast/api";
 
 export interface SafeJSONParseResult<T> {
   success: boolean;
@@ -35,13 +35,26 @@ export function safeJSONParse<T>(rawResponse: string, expectedFields: string[], 
 }
 
 /**
+ * Check if AI access is available
+ */
+export function checkAIAccess(): void {
+  if (!environment.canAccess(AI)) {
+    throw new Error("AI features require Raycast Pro. Please upgrade your subscription to access AI features.");
+  }
+}
+
+/**
  * Ask AI with retry logic for resilience
+ * Includes automatic access check before making requests
  */
 export async function askWithRetry(
   prompt: string,
   options: { model: AI.Model; creativity: AI.Creativity },
   maxRetries = 2,
 ): Promise<string> {
+  // Check AI access before attempting to use it
+  checkAIAccess();
+
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

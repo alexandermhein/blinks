@@ -27,19 +27,11 @@ Output: {"cleanedQuote": "Be yourself; everyone else is already taken.", "author
 
 Respond with ONLY valid JSON (no markdown formatting, no extra text):`;
 
-    let response: string;
-    try {
-      response = await askWithRetry(prompt, {
-        model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
-        creativity: "low",
-      });
-    } catch {
-      // Fallback to 2.0 Flash if 2.5 isn't available
-      response = await askWithRetry(prompt, {
-        model: AI.Model["Google_Gemini_2.0_Flash"],
-        creativity: "low",
-      });
-    }
+    // Use proper enum value - Raycast automatically handles fallbacks
+    const response = await askWithRetry(prompt, {
+      model: AI.Model["Google_Gemini_2.5_Flash"],
+      creativity: "low",
+    });
 
     // Safe JSON parsing with fallback
     const parseResult = safeJSONParse<AIQuoteResponse>(response, ["cleanedQuote", "author", "context"], {

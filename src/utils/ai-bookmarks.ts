@@ -14,27 +14,15 @@ URL: ${url}
 Respond with ONLY the summary text (no JSON, no extra formatting, no quotation marks):`;
 
   try {
-    let summary = "";
-    try {
-      summary = await askWithRetry(
-        prompt,
-        {
-          model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
-          creativity: "low",
-        },
-        2,
-      );
-    } catch {
-      // Fallback to 2.0 Flash if 2.5 isn't available
-      summary = await askWithRetry(
-        prompt,
-        {
-          model: AI.Model["Google_Gemini_2.0_Flash"],
-          creativity: "low",
-        },
-        2,
-      );
-    }
+    // Use proper enum value - Raycast automatically handles fallbacks
+    const summary = await askWithRetry(
+      prompt,
+      {
+        model: AI.Model["Google_Gemini_2.5_Flash"],
+        creativity: "low",
+      },
+      2,
+    );
 
     return {
       title,

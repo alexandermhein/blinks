@@ -42,19 +42,11 @@ Reminder: "${reminder}"
 Respond with ONLY valid JSON (no markdown formatting, no extra text):
 {"title": "...", "description": "..."}`;
 
-    let response: string;
-    try {
-      response = await askWithRetry(prompt, {
-        model: "Google_Gemini_2.5_Flash" as unknown as AI.Model,
-        creativity: "low",
-      });
-    } catch {
-      // Fallback to 2.0 Flash if 2.5 isn't available
-      response = await askWithRetry(prompt, {
-        model: AI.Model["Google_Gemini_2.0_Flash"],
-        creativity: "low",
-      });
-    }
+    // Use proper enum value - Raycast automatically handles fallbacks
+    const response = await askWithRetry(prompt, {
+      model: AI.Model["Google_Gemini_2.5_Flash"],
+      creativity: "low",
+    });
 
     const parseResult = safeJSONParse<AIReminderResponse>(response, ["title", "description"], {
       title: trimmedReminder,
