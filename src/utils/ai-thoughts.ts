@@ -4,7 +4,7 @@ import type { AIThoughtResponse, ProcessedThought } from "./ai-schemas";
 
 export async function processThought(thought: string): Promise<ProcessedThought> {
   if (!thought || !thought.trim()) {
-    throw new Error("Empty thought provided");
+    throw new Error("No thought provided");
   }
 
   try {
@@ -17,18 +17,18 @@ RULES:
 EXAMPLES:
 
 Input: "I need to remember to follow up with the team about the project deadline"
-Output: {"title": "Follow up with team about project deadline", "description": "Need to discuss project deadlines and coordinate with the team to ensure we meet our goals."}
+Output: {"title": "Follow up with team about project deadline", "context": "Need to discuss project deadlines and coordinate with the team to ensure we meet our goals."}
 
 Input: "Should consider using a different approach for the UI"
-Output: {"title": "Reconsider UI approach", "description": "Evaluating alternative UI implementations that may improve user experience or development efficiency."}
+Output: {"title": "Reconsider UI approach", "context": "Evaluating alternative UI implementations that may improve user experience or development efficiency."}
 
 Input: "The new feature request has some interesting implications"
-Output: {"title": "New feature request implications", "description": "Analyzing the potential impact and interesting aspects of the new feature request."}
+Output: {"title": "New feature request implications", "context": "Analyzing the potential impact and interesting aspects of the new feature request."}
 
 Thought: "${thought}"
 
 Respond with ONLY valid JSON (no markdown formatting, no extra text):
-{"title": "...", "description": "..."}`;
+{"title": "...", "context": "..."}`;
 
     let response: string;
     try {
@@ -44,10 +44,10 @@ Respond with ONLY valid JSON (no markdown formatting, no extra text):
       });
     }
 
-    // Parse with validation
-    const parseResult = safeJSONParse<AIThoughtResponse>(response, ["title", "description"], {
+    // Parse with validation - Note: AI returns "context" but we need to map it to "description"
+    const parseResult = safeJSONParse<{ title: string; context: string }>(response, ["title", "context"], {
       title: thought.trim().substring(0, 60),
-      description: thought.trim(),
+      context: thought.trim(),
     });
 
     if (!parseResult.success || !parseResult.data) {
@@ -58,7 +58,7 @@ Respond with ONLY valid JSON (no markdown formatting, no extra text):
 
     return {
       title: result.title.substring(0, 60), // Hard cap at 60 characters
-      description: result.description,
+      description: result.context, // Map "context" from AI to "description" in our internal model
     };
   } catch (error) {
     throw new Error(`Failed to process thought: ${error instanceof Error ? error.message : "Unknown error"}`);

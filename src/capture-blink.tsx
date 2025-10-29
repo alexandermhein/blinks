@@ -66,18 +66,21 @@ export default function Command() {
       let author: string | undefined;
       let description: string | undefined;
 
-      if (
-        values.type === "quote" ||
-        values.type === "thought" ||
-        values.type === "reminder" ||
-        values.type === "bookmark"
-      ) {
-        const loadingToast = await showToast({
-          style: Toast.Style.Animated,
-          title: "Processing Blink...",
-        });
+      let loadingToast = null;
 
-        try {
+      try {
+        // Show loading indicator for AI processing
+        if (
+          values.type === "quote" ||
+          values.type === "thought" ||
+          values.type === "reminder" ||
+          values.type === "bookmark"
+        ) {
+          loadingToast = await showToast({
+            style: Toast.Style.Animated,
+            title: "Processing Blink...",
+          });
+
           if (values.type === "quote") {
             const processed = await processQuote(values.title);
             processedTitle = processed.formattedQuote;
@@ -96,19 +99,18 @@ export default function Command() {
             processedTitle = processed.title;
             description = processed.description;
           }
-          await loadingToast.hide();
-        } catch (error) {
-          await loadingToast.hide();
-          showToast({
-            style: Toast.Style.Failure,
-            title: `Error processing ${values.type}`,
-            message: error instanceof Error ? error.message : "Could not analyze with AI",
-          });
-          // Continue to save original input even if AI fails
         }
-      }
 
-      try {
+        // Update toast to show saving
+        if (loadingToast) {
+          loadingToast.title = "Saving to Notion...";
+        } else {
+          loadingToast = await showToast({
+            style: Toast.Style.Animated,
+            title: "Saving to Notion...",
+          });
+        }
+
         const blink = {
           id: Date.now().toString(36) + Math.random().toString(36).substring(2),
           type: values.type,
@@ -121,14 +123,25 @@ export default function Command() {
         };
 
         await saveBlink(blink);
+        await loadingToast.hide();
         popToRoot();
         await showHUD(`${values.type.charAt(0).toUpperCase() + values.type.slice(1)} captured  ✅`);
       } catch (error) {
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Error saving Blink",
-          message: error instanceof Error ? error.message : "Unknown error occurred",
-        });
+        if (loadingToast) {
+          loadingToast.style = Toast.Style.Failure;
+          loadingToast.title = error instanceof Error && error.message.includes("process")
+            ? `Error processing ${values.type}`
+            : "Error saving Blink";
+          loadingToast.message = error instanceof Error ? error.message : "Unknown error occurred";
+        } else {
+          showToast({
+            style: Toast.Style.Failure,
+            title: error instanceof Error && error.message.includes("process")
+              ? `Error processing ${values.type}`
+              : "Error saving Blink",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+          });
+        }
       }
     },
     validation: {

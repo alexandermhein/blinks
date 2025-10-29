@@ -16,8 +16,8 @@ interface NotionPrefs {
 interface NotionPropertyMap {
   Title: string; // title
   Type: string; // select
-  Description: string; // rich_text
-  Source: string; // url
+  Context: string; // rich_text (formerly Description)
+  URL: string; // url (formerly Source)
   Author: string; // rich_text
   "Reminder Date": string; // date
   "Is Completed": string; // checkbox
@@ -44,16 +44,20 @@ function getDatabaseId(): string {
 function blinkToNotionProperties(
   blink: Blink,
 ): Record<string, { title?: { type: "text"; text: { content: string } }[]; select?: { name: string } } | unknown> {
+  // Capitalize the type (e.g., "thought" -> "Thought")
+  const capitalizedType = blink.type.charAt(0).toUpperCase() + blink.type.slice(1);
+  
   const properties: Record<string, unknown> = {
     Title: { title: [{ type: "text", text: { content: blink.title } }] },
-    Type: { select: { name: blink.type } },
+    Type: { select: { name: capitalizedType } },
   };
 
+  // Only add optional properties if they exist
   if (blink.description) {
-    properties.Description = { rich_text: [{ type: "text", text: { content: blink.description } }] };
+    properties.Context = { rich_text: [{ type: "text", text: { content: blink.description } }] };
   }
   if (blink.source) {
-    properties.Source = { url: blink.source };
+    properties.URL = { url: blink.source };
   }
   if (blink.author) {
     properties.Author = { rich_text: [{ type: "text", text: { content: blink.author } }] };
@@ -88,8 +92,8 @@ function notionPageToBlink(page: PageObjectResponse): Blink {
     Record<string, unknown> & {
       Title?: { title?: Array<{ plain_text?: string }> };
       Type?: { select?: { name?: string } };
-      Description?: { rich_text?: RichTextItemResponse[] };
-      Source?: { url?: string | null };
+      Context?: { rich_text?: RichTextItemResponse[] };
+      URL?: { url?: string | null };
       Author?: { rich_text?: RichTextItemResponse[] };
       "Reminder Date"?: { date?: { start?: string | null } | null };
       "Is Completed"?: { checkbox?: boolean };
@@ -97,8 +101,10 @@ function notionPageToBlink(page: PageObjectResponse): Blink {
     };
   const title = props.Title?.title?.[0]?.plain_text ?? "Untitled";
   const typeName = props.Type?.select?.name ?? "thought";
-  const description = propertyAsPlainText(props.Description);
-  const source = props.Source?.url ?? undefined;
+  // Convert capitalized Notion type back to lowercase (e.g., "Thought" -> "thought")
+  const lowercaseType = typeName.toLowerCase();
+  const description = propertyAsPlainText(props.Context);
+  const source = props.URL?.url ?? undefined;
   const author = propertyAsPlainText(props.Author);
   const reminderDateStr = props["Reminder Date"]?.date?.start ?? undefined;
   const isCompleted = props["Is Completed"]?.checkbox ?? false;
@@ -107,7 +113,7 @@ function notionPageToBlink(page: PageObjectResponse): Blink {
   return {
     id: page.id,
     title,
-    type: typeName,
+    type: lowercaseType,
     description,
     source,
     author,
