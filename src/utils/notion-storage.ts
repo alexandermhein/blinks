@@ -124,34 +124,60 @@ function notionPageToBlink(page: PageObjectResponse): Blink {
 export async function getNotionBlinks(): Promise<Blink[]> {
   const client = getClient();
   const database_id = getDatabaseId();
+  const pageResults: PageObjectResponse[] = [];
   let cursor: string | undefined = undefined;
 
   try {
-    // Use search API to find all pages in the database
-    // Filter pages that have this database as parent
-    const pageResults: PageObjectResponse[] = [];
-    do {
-      const response = await client.search({
-        filter: {
-          value: "page",
-          property: "object",
-        },
-        start_cursor: cursor,
-      });
+    // First retrieve the database to check if it's a data source
+    const database = await client.databases.retrieve({ database_id });
+    
+    // Check if database has data sources (type assertion needed for newer API)
+    // biome-ignore lint/suspicious/noExplicitAny: Notion SDK types incomplete for data_sources
+    const db = database as any;
+    if (db.data_sources && db.data_sources.length > 0) {
+      const dataSourceId = db.data_sources[0].id;
       
-      // Filter and collect only pages from our database
-      for (const item of response.results) {
-        // Cast to page type to check if it's a page (not data source)
-        const maybePage = item as PageObjectResponse | PartialPageObjectResponse;
-        if (isFullPage(maybePage) && 
-            maybePage.parent.type === "database_id" && 
-            maybePage.parent.database_id === database_id) {
-          pageResults.push(maybePage);
+      // Query data source to get pages
+      do {
+        const response = await client.dataSources.query({
+          data_source_id: dataSourceId,
+          start_cursor: cursor,
+        });
+        
+        // Filter to only include full pages
+        for (const item of response.results) {
+          const maybePage = item as PageObjectResponse | PartialPageObjectResponse;
+          if (isFullPage(maybePage)) {
+            pageResults.push(maybePage);
+          }
         }
-      }
-      
-      cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
-    } while (cursor);
+        
+        cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
+      } while (cursor);
+    } else {
+      // Fallback: Use search API
+      do {
+        const response = await client.search({
+          filter: {
+            value: "page",
+            property: "object",
+          },
+          start_cursor: cursor,
+        });
+        
+        // Filter and collect only pages from our database
+        for (const item of response.results) {
+          const maybePage = item as PageObjectResponse | PartialPageObjectResponse;
+          if (isFullPage(maybePage) && 
+              maybePage.parent.type === "database_id" && 
+              maybePage.parent.database_id === database_id) {
+            pageResults.push(maybePage);
+          }
+        }
+        
+        cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
+      } while (cursor);
+    }
     
     return pageResults.map(notionPageToBlink);
   } catch (error) {
