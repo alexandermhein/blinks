@@ -124,30 +124,36 @@ function notionPageToBlink(page: PageObjectResponse): Blink {
 export async function getNotionBlinks(): Promise<Blink[]> {
   const client = getClient();
   const database_id = getDatabaseId();
-  const results: Array<PageObjectResponse | PartialPageObjectResponse> = [];
   let cursor: string | undefined = undefined;
 
   try {
-    // Query all pages in the database
+    // Use search API to find all pages in the database
+    // Filter pages that have this database as parent
+    const pageResults: PageObjectResponse[] = [];
     do {
-      type DatabaseQueryResponse = {
-        results: Array<PageObjectResponse | PartialPageObjectResponse>;
-        has_more: boolean;
-        next_cursor: string | null;
-      };
-      
-      // Type cast to work around incomplete Notion SDK types
-      // @ts-expect-error - databases.query exists but not fully typed
-      const response: DatabaseQueryResponse = await client.databases.query({
-        database_id,
+      const response = await client.search({
+        filter: {
+          value: "page",
+          property: "object",
+        },
         start_cursor: cursor,
       });
-      results.push(...response.results);
+      
+      // Filter and collect only pages from our database
+      for (const item of response.results) {
+        // Cast to page type to check if it's a page (not data source)
+        const maybePage = item as PageObjectResponse | PartialPageObjectResponse;
+        if (isFullPage(maybePage) && 
+            maybePage.parent.type === "database_id" && 
+            maybePage.parent.database_id === database_id) {
+          pageResults.push(maybePage);
+        }
+      }
+      
       cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
     } while (cursor);
     
-    const fullPages = results.filter(isFullPage);
-    return (fullPages as PageObjectResponse[]).map(notionPageToBlink);
+    return pageResults.map(notionPageToBlink);
   } catch (error) {
     await showToast({ style: Toast.Style.Failure, title: "Notion query failed" });
     throw error;
@@ -201,5 +207,6 @@ export async function toggleNotionBlinkCompletion(id: string): Promise<void> {
     },
   });
 }
+
 
 
