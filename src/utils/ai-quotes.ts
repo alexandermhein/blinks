@@ -3,13 +3,13 @@ import { askWithRetry, safeJSONParse } from "./ai-helper";
 import type { AIQuoteResponse, ProcessedQuote } from "./ai-schemas";
 
 export async function processQuote(quote: string): Promise<ProcessedQuote> {
-  if (!quote || !quote.trim()) {
-    return { formattedQuote: quote.trim() };
-  }
+	if (!quote || !quote.trim()) {
+		return { formattedQuote: quote.trim() };
+	}
 
-  try {
-    // Combined prompt - does identification, cleaning, and formatting in one pass
-    const prompt = `You are a quote processing assistant. Analyze this quote and extract:
+	try {
+		// Combined prompt - does identification, cleaning, and formatting in one pass
+		const prompt = `You are a quote processing assistant. Analyze this quote and extract:
 1. The cleaned quote text (remove attribution markers like "—", "by", "-")
 2. The author name (if explicitly mentioned or if you can identify it with high confidence)
 3. A brief 1-2 sentence context (only if author is identified and known)
@@ -27,39 +27,43 @@ Output: {"cleanedQuote": "Be yourself; everyone else is already taken.", "author
 
 Respond with ONLY valid JSON (no markdown formatting, no extra text):`;
 
-    // Use proper enum value - Raycast automatically handles fallbacks
-    const response = await askWithRetry(prompt, {
-      model: AI.Model["Google_Gemini_2.5_Flash"],
-      creativity: "low",
-    });
+		// Use proper enum value - Raycast automatically handles fallbacks
+		const response = await askWithRetry(prompt, {
+			model: AI.Model["Google_Gemini_2.5_Flash"],
+			creativity: "low",
+		});
 
-    // Safe JSON parsing with fallback
-    const parseResult = safeJSONParse<AIQuoteResponse>(response, ["cleanedQuote", "author", "context"], {
-      cleanedQuote: quote.trim(),
-      author: null,
-      context: null,
-    });
+		// Safe JSON parsing with fallback
+		const parseResult = safeJSONParse<AIQuoteResponse>(
+			response,
+			["cleanedQuote", "author", "context"],
+			{
+				cleanedQuote: quote.trim(),
+				author: null,
+				context: null,
+			},
+		);
 
-    if (!parseResult.success || !parseResult.data) {
-      return { formattedQuote: quote.trim() };
-    }
+		if (!parseResult.success || !parseResult.data) {
+			return { formattedQuote: quote.trim() };
+		}
 
-    const result = parseResult.data;
+		const result = parseResult.data;
 
-    // Post-process: format the quote properly
-    const formattedQuote = result.cleanedQuote
-      .trim()
-      .replace(/\s+/g, " ") // Replace multiple spaces with single space
-      .replace(/^\s*["']|["']\s*$/g, "") // Remove surrounding quotes
-      .replace(/^[a-z]/, (letter: string) => letter.toUpperCase()); // Capitalize first letter
+		// Post-process: format the quote properly
+		const formattedQuote = result.cleanedQuote
+			.trim()
+			.replace(/\s+/g, " ") // Replace multiple spaces with single space
+			.replace(/^\s*["']|["']\s*$/g, "") // Remove surrounding quotes
+			.replace(/^[a-z]/, (letter: string) => letter.toUpperCase()); // Capitalize first letter
 
-    return {
-      formattedQuote,
-      author: result.author || undefined,
-      description: result.context || undefined,
-    };
-  } catch (error) {
-    console.error("Error processing quote:", error);
-    return { formattedQuote: quote.trim() };
-  }
+		return {
+			formattedQuote,
+			author: result.author || undefined,
+			description: result.context || undefined,
+		};
+	} catch (error) {
+		console.error("Error processing quote:", error);
+		return { formattedQuote: quote.trim() };
+	}
 }
