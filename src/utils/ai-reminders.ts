@@ -2,22 +2,24 @@ import { AI } from "@raycast/api";
 import { askWithRetry, safeJSONParse } from "./ai-helper";
 import type { AIReminderResponse, ProcessedReminder } from "./ai-schemas";
 
-export async function processReminder(reminder: string): Promise<ProcessedReminder> {
-  if (!reminder || !reminder.trim()) {
-    throw new Error("Empty reminder provided");
-  }
+export async function processReminder(
+	reminder: string,
+): Promise<ProcessedReminder> {
+	if (!reminder || !reminder.trim()) {
+		throw new Error("Empty reminder provided");
+	}
 
-  // Handle single-word inputs
-  const trimmedReminder = reminder.trim();
-  if (!trimmedReminder.includes(" ")) {
-    return {
-      title: trimmedReminder.charAt(0).toUpperCase() + trimmedReminder.slice(1),
-      description: "",
-    };
-  }
+	// Handle single-word inputs
+	const trimmedReminder = reminder.trim();
+	if (!trimmedReminder.includes(" ")) {
+		return {
+			title: trimmedReminder.charAt(0).toUpperCase() + trimmedReminder.slice(1),
+			description: "",
+		};
+	}
 
-  try {
-    const prompt = `You are a reminder processing assistant. Extract the action and context from this reminder.
+	try {
+		const prompt = `You are a reminder processing assistant. Extract the action and context from this reminder.
 
 RULES:
 - Title: Action-oriented, max 40 chars, start with verb, use sentence case
@@ -42,31 +44,39 @@ Reminder: "${reminder}"
 Respond with ONLY valid JSON (no markdown formatting, no extra text):
 {"title": "...", "description": "..."}`;
 
-    // Use proper enum value - Raycast automatically handles fallbacks
-    const response = await askWithRetry(prompt, {
-      model: AI.Model["Google_Gemini_2.5_Flash"],
-      creativity: "low",
-    });
+		// Use proper enum value - Raycast automatically handles fallbacks
+		const response = await askWithRetry(prompt, {
+			model: AI.Model["Google_Gemini_2.5_Flash"],
+			creativity: "low",
+		});
 
-    const parseResult = safeJSONParse<AIReminderResponse>(response, ["title", "description"], {
-      title: trimmedReminder,
-      description: "",
-    });
+		const parseResult = safeJSONParse<AIReminderResponse>(
+			response,
+			["title", "description"],
+			{
+				title: trimmedReminder,
+				description: "",
+			},
+		);
 
-    // Validate the result
-    if (!parseResult.success || !parseResult.data) {
-      throw new Error("Failed to parse AI response");
-    }
+		// Validate the result
+		if (!parseResult.success || !parseResult.data) {
+			throw new Error("Failed to parse AI response");
+		}
 
-    if (!Object.prototype.hasOwnProperty.call(parseResult.data, "description")) {
-      throw new Error("Invalid description field");
-    }
+		if (
+			!Object.prototype.hasOwnProperty.call(parseResult.data, "description")
+		) {
+			throw new Error("Invalid description field");
+		}
 
-    return {
-      title: parseResult.data.title,
-      description: parseResult.data.description,
-    };
-  } catch (error) {
-    throw new Error(`Failed to process reminder: ${error instanceof Error ? error.message : "Unknown error"}`);
-  }
+		return {
+			title: parseResult.data.title,
+			description: parseResult.data.description,
+		};
+	} catch (error) {
+		throw new Error(
+			`Failed to process reminder: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }

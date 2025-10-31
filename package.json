@@ -1,68 +1,65 @@
 {
-  "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "blinks",
-  "title": "Blinks",
-  "description": "A Tana-inspired quick capture tool. Built for Raycast.",
-  "icon": "extension-icon.png",
-  "author": "alexandermhein",
-  "categories": [
-    "Productivity"
-  ],
-  "license": "MIT",
-  "commands": [
-    {
-      "name": "capture-blink",
-      "title": "Capture Blink",
-      "description": "Capture a thought, reminder, bookmark or quote.",
-      "mode": "view"
-    },
-    {
-      "name": "show-blinks",
-      "title": "Show Blinks",
-      "description": "View all your Blinks.",
-      "mode": "view"
-    }
-  ],
-  "dependencies": {
-    "@notionhq/client": "^5.3.0",
-    "@raycast/api": "^1.103.4",
-    "@raycast/utils": "^2.2.1"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@raycast/eslint-config": "^2.0.4",
-    "@types/node": "22.13.10",
-    "@types/react": "19.0.10",
-    "eslint": "^9.22.0",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
-  },
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build": "npm run clean && ray build",
-    "dev": "ray develop",
-    "fix-lint": "ray lint --fix",
-    "lint": "ray lint",
-    "biome:check": "biome check --colors always .",
-    "biome:format": "biome format --write .",
-    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the `prepublishOnly` script and rerun `npm publish` again.\\nIf you wanted to publish it to the Raycast Store instead, use `npm run publish` instead.\\n\\n\" && exit 1",
-    "publish": "npx @raycast/api@latest publish"
-  },
-  "preferences": [
-    {
-      "name": "notion_api_token",
-      "title": "Notion API Token",
-      "description": "Internal integration token from Notion (secret_...)",
-      "type": "password",
-      "required": true
-    },
-    {
-      "name": "notion_database_id",
-      "title": "Notion Database ID",
-      "description": "ID of the Notion database where Blinks are stored",
-      "type": "textfield",
-      "required": true,
-      "placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    }
-  ]
+	"$schema": "https://www.raycast.com/schemas/extension.json",
+	"name": "blinks",
+	"title": "Blinks",
+	"description": "A Tana-inspired quick capture tool. Built for Raycast.",
+	"icon": "extension-icon.png",
+	"author": "alexandermhein",
+	"categories": ["Productivity"],
+	"license": "MIT",
+	"commands": [
+		{
+			"name": "capture-blink",
+			"title": "Capture Blink",
+			"description": "Capture a thought, reminder, bookmark or quote.",
+			"mode": "view"
+		},
+		{
+			"name": "show-blinks",
+			"title": "Show Blinks",
+			"description": "View all your Blinks.",
+			"mode": "view"
+		}
+	],
+	"dependencies": {
+		"@notionhq/client": "5.3.0",
+		"@raycast/api": "1.103.4",
+		"@raycast/utils": "2.2.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@raycast/eslint-config": "2.0.4",
+		"@types/node": "22.13.10",
+		"@types/react": "18.3.12",
+		"eslint": "9.22.0",
+		"typescript": "5.8.2"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "npm run clean && ray build",
+		"dev": "ray develop",
+		"fix-lint": "ray lint --fix",
+		"lint": "ray lint",
+		"biome:check": "biome check .",
+		"biome:format": "biome format --write .",
+		"prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the `prepublishOnly` script and rerun `npm publish` again.\\nIf you wanted to publish it to the Raycast Store instead, use `npm run publish` instead.\\n\\n\" && exit 1",
+		"publish": "npx @raycast/api@latest publish"
+	},
+	"preferences": [
+		{
+			"name": "notion_api_token",
+			"title": "Notion API Token",
+			"description": "Internal integration token from Notion (secret_...)",
+			"type": "password",
+			"required": true
+		},
+		{
+			"name": "notion_database_id",
+			"title": "Notion Database ID",
+			"description": "ID of the Notion database where Blinks are stored",
+			"type": "textfield",
+			"required": true,
+			"placeholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+		}
+	]
 }

@@ -52,10 +52,10 @@ This extension stores Blinks in a single Notion database with full create, read,
 Create a database (Table view recommended) and add these properties:
 
 - Title (title)
-- Type (select) with options: thought, reminder, bookmark, quote
-- Description (rich text)
-- Source (url)
-- Author (rich text)
+- Type (select) with options: Thought, Reminder, Bookmark, Quote
+- Context (rich text) — optional freeform description
+- URL (url) — optional source link
+- Author (rich text) — used for Quotes
 - Reminder Date (date)
 - Is Completed (checkbox)
 - Completed At (date)
@@ -70,3 +70,10 @@ In Raycast → Extensions → Blinks, set:
 - Notion Database ID: The database ID (from the URL)
 
 Now all Blinks will be stored in this Notion database.
+
+### Troubleshooting
+
+- Invalid preferences: Ensure both Notion API Token and Database ID are set in Raycast.
+- Wrong property names: Property names must match exactly (e.g., "Context", not "Description").
+- Missing permissions: Share the database with your integration in Notion.
+- API limits: Heavy usage may hit Notion rate limits; try again shortly.
